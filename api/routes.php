@@ -458,11 +458,10 @@ try {
                     echo json_encode($get->getBatchProductIngredients($product_ids));
                     break;
                 case 'get-session-key':
-                    // Generate a temporary session-specific key
                     session_start();
                     echo json_encode([
                         "status" => true,
-                        "key" => "692317ec55c6bca60beccb571fb9591809ecebdc5428216ac267f2481c054617"
+                        "key" => $_ENV['ENCRYPTION_KEY']
                     ]);
                     break;
                 default:

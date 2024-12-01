@@ -1,10 +1,11 @@
 import CryptoJS from 'crypto-js';
+import { PUBLIC_ENCRYPTION_KEY } from '$env/static/public';
 
 export class EncryptionService {
     private key: string | null = null;
 
     constructor() {
-        this.key = "692317ec55c6bca60beccb571fb9591809ecebdc5428216ac267f2481c054617";
+        this.key = PUBLIC_ENCRYPTION_KEY;
     }
 
     async encrypt(data: unknown): Promise<string> {
