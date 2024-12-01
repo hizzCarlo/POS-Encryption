@@ -39,6 +39,41 @@ class Update {
         global $conn;
         
         try {
+            if (!isset($data['product_id'])) {
+                return [
+                    "status" => false,
+                    "message" => "Product ID is required"
+                ];
+            }
+
+            // Check for existing product with same details but different ID
+            $checkSql = "SELECT * FROM product WHERE 
+                        name = :name AND 
+                        category = :category AND 
+                        price = :price AND
+                        size = :size AND
+                        product_id != :product_id";
+            
+            $checkStmt = $conn->prepare($checkSql);
+            $checkParams = [
+                ':name' => $data['name'],
+                ':category' => $data['category'],
+                ':price' => $data['price'],
+                ':size' => $data['size'] ?? 'Standard',
+                ':product_id' => $data['product_id']
+            ];
+            
+            $checkStmt->execute($checkParams);
+            
+            if ($checkStmt->fetch()) {
+                return [
+                    "status" => false,
+                    "message" => "A similar product already exists",
+                    "duplicate" => true
+                ];
+            }
+
+            // If no duplicate found, proceed with update
             $sql = "UPDATE product SET 
                     name = :name,
                     price = :price,
@@ -86,6 +121,14 @@ class Update {
     public function updateProductIngredient($data) {
         global $conn;
         
+        if (!isset($data['product_ingredient_id'])) {
+            return [
+                "status" => false,
+                "message" => "Product ingredient ID is required",
+                "data" => null
+            ];
+        }
+
         try {
             $conn->beginTransaction();
             
@@ -101,15 +144,27 @@ class Update {
             
             if ($stmt->rowCount() === 0) {
                 $conn->rollBack();
-                return ["status" => false, "message" => "No ingredient found to update"];
+                return [
+                    "status" => false, 
+                    "message" => "No ingredient found to update",
+                    "data" => null
+                ];
             }
             
             $conn->commit();
-            return ["status" => true, "message" => "Product ingredient updated successfully"];
+            return [
+                "status" => true, 
+                "message" => "Product ingredient updated successfully",
+                "data" => null
+            ];
             
         } catch (PDOException $e) {
             $conn->rollBack();
-            return ["status" => false, "message" => "Failed to update product ingredient: " . $e->getMessage()];
+            return [
+                "status" => false, 
+                "message" => "Failed to update product ingredient: " . $e->getMessage(),
+                "data" => null
+            ];
         }
     }
     

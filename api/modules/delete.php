@@ -56,6 +56,14 @@ class Delete {
 
     public function deleteMenuItem($data) {
         global $conn;
+        
+        if (!isset($data['product_id'])) {
+            return [
+                "status" => false,
+                "message" => "Product ID is required"
+            ];
+        }
+
         $id = $data['product_id'];
         
         try {
@@ -86,7 +94,10 @@ class Delete {
             $stmt->execute();
             
             $conn->commit();
-            return ["status" => true, "message" => "Menu item deleted successfully"];
+            return [
+                "status" => true, 
+                "message" => "Menu item deleted successfully"
+            ];
             
         } catch (PDOException $e) {
             $conn->rollBack();
@@ -200,6 +211,14 @@ class Delete {
     public function deleteProductIngredient($data) {
         global $conn;
         
+        if (!isset($data['product_ingredient_id'])) {
+            return [
+                "status" => false,
+                "message" => "Product ingredient ID is required",
+                "data" => null
+            ];
+        }
+
         try {
             $conn->beginTransaction();
             
@@ -209,15 +228,27 @@ class Delete {
             
             if ($stmt->rowCount() === 0) {
                 $conn->rollBack();
-                return ["status" => false, "message" => "No ingredient found to delete"];
+                return [
+                    "status" => false, 
+                    "message" => "No ingredient found to delete",
+                    "data" => null
+                ];
             }
             
             $conn->commit();
-            return ["status" => true, "message" => "Product ingredient deleted successfully"];
+            return [
+                "status" => true, 
+                "message" => "Product ingredient deleted successfully",
+                "data" => null
+            ];
             
         } catch (PDOException $e) {
             $conn->rollBack();
-            return ["status" => false, "message" => "Failed to delete product ingredient: " . $e->getMessage()];
+            return [
+                "status" => false, 
+                "message" => "Failed to delete product ingredient: " . $e->getMessage(),
+                "data" => null
+            ];
         }
     }
 

@@ -63,4 +63,66 @@ export class ApiService {
             throw error;
         }
     }
+
+    static async put<T>(endpoint: string, data: unknown): Promise<T> {
+        try {
+            const encryptedData = await encryptionService.encrypt(data);
+            const user = get(userStore);
+            
+            const response = await fetch(`/api/${endpoint}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.userId}`
+                },
+                body: JSON.stringify({ data: encryptedData })
+            });
+
+            if (response.status === 401) {
+                userStore.clear();
+                window.location.href = '/';
+                throw new Error('Unauthorized');
+            }
+
+            const result = await response.json();
+            if (result.data) {
+                return await encryptionService.decrypt(result.data) as T;
+            }
+            return result as T;
+        } catch (error) {
+            console.error(`API Error (${endpoint}):`, error);
+            throw error;
+        }
+    }
+
+    static async delete<T>(endpoint: string, data: unknown): Promise<T> {
+        try {
+            const encryptedData = await encryptionService.encrypt(data);
+            const user = get(userStore);
+            
+            const response = await fetch(`/api/${endpoint}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.userId}`
+                },
+                body: JSON.stringify({ data: encryptedData })
+            });
+
+            if (response.status === 401) {
+                userStore.clear();
+                window.location.href = '/';
+                throw new Error('Unauthorized');
+            }
+
+            const result = await response.json();
+            if (result.data) {
+                return await encryptionService.decrypt(result.data) as T;
+            }
+            return result as T;
+        } catch (error) {
+            console.error(`API Error (${endpoint}):`, error);
+            throw error;
+        }
+    }
 } 

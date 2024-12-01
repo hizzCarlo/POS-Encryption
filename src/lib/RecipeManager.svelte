@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { ApiService } from './services/api';
     
     type Ingredient = {
       inventory_id: number;
@@ -30,6 +31,7 @@
   
     let editingIngredient: number | null = null;
     let editQuantity: number = 0;
+    let editUnitOfMeasure: UnitOfMeasure = 'pieces';
   
     let searchIngredient = '';
     let searchRecipe = '';
@@ -50,18 +52,27 @@
     });
   
     async function fetchIngredients() {
-      const response = await fetch('/api/get-items');
-      const result = await response.json();
-      if (result.status) {
-        ingredients = result.data;
+      try {
+        const result = await ApiService.get<{status: boolean; data: Ingredient[]}>('get-items');
+        if (result.status) {
+          ingredients = result.data;
+        }
+      } catch (error) {
+        console.error('Error fetching ingredients:', error);
       }
     }
   
     async function fetchProductRecipe() {
-      const response = await fetch(`/api/get-product-ingredients&product_id=${productId}`);
-      const result = await response.json();
-      if (result.status) {
-        productRecipe = result.data;
+      try {
+        const result = await ApiService.get<{status: boolean; data: Recipe[]}>('get-product-ingredients', {
+          product_id: productId.toString()
+        });
+        
+        if (result.status) {
+          productRecipe = result.data;
+        }
+      } catch (error) {
+        console.error('Error fetching recipe:', error);
       }
     }
   
@@ -72,21 +83,20 @@
       }
   
       try {
-        const response = await fetch('/api/add-product-ingredient', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            product_id: productId,
-            inventory_id: newIngredient.inventory_id,
-            quantity_needed: newIngredient.quantity_needed,
-            unit_of_measure: selectedIngredient?.unit_of_measure || 'pieces'
-          })
-        });
+        const requestData = {
+          product_id: productId,
+          inventory_id: newIngredient.inventory_id,
+          quantity_needed: newIngredient.quantity_needed,
+          unit_of_measure: selectedIngredient?.unit_of_measure || 'pieces'
+        };
   
-        const result = await response.json();
-        if (result.status) {
+        const result = await ApiService.post<{
+          status: boolean;
+          message: string;
+          data?: any;
+        }>('add-product-ingredient', requestData);
+  
+        if (result && result.status) {
           await fetchProductRecipe();
           newIngredient = {
             inventory_id: 0,
@@ -94,7 +104,7 @@
             unit_of_measure: ''
           };
         } else {
-          alert(result.message);
+          alert(result?.message || 'Failed to add ingredient');
         }
       } catch (error) {
         console.error('Error:', error);
@@ -105,43 +115,47 @@
     async function removeIngredient(ingredientId: number) {
       if (!confirm('Are you sure you want to remove this ingredient?')) return;
   
-      const response = await fetch('/api/delete-product-ingredient', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      try {
+        const result = await ApiService.delete<{
+          status: boolean;
+          message: string;
+          data?: any;
+        }>('delete-product-ingredient', {
           product_ingredient_id: ingredientId
-        })
-      });
+        });
   
-      const result = await response.json();
-      if (result.status) {
-        await fetchProductRecipe();
-      } else {
-        alert(result.message);
+        if (result && result.status) {
+          await fetchProductRecipe();
+        } else {
+          alert(result?.message || 'Failed to remove ingredient');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to remove ingredient');
       }
     }
   
     async function updateIngredientQuantity(ingredient: Recipe) {
-      const response = await fetch('/api/update-product-ingredient', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      try {
+        const result = await ApiService.put<{
+          status: boolean;
+          message: string;
+          data?: any;
+        }>('update-product-ingredient', {
           product_ingredient_id: ingredient.product_ingredient_id,
           quantity_needed: editQuantity,
           unit_of_measure: editUnitOfMeasure
-        })
-      });
-  
-      const result = await response.json();
-      if (result.status) {
-        await fetchProductRecipe();
-        editingIngredient = null;
-      } else {
-        alert(result.message);
+        });
+
+        if (result && result.status) {
+          await fetchProductRecipe();
+          editingIngredient = null;
+        } else {
+          alert(result?.message || 'Failed to update ingredient');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to update ingredient');
       }
     }
   
@@ -153,8 +167,6 @@
     type UnitOfMeasure = 'pieces' | 'grams' | 'kilograms' | 'milliliters' | 'liters' | 'cups' | 'tablespoons' | 'teaspoons';
   
     const unitOptions: UnitOfMeasure[] = ['pieces', 'grams', 'kilograms', 'milliliters', 'liters', 'cups', 'tablespoons', 'teaspoons'];
-  
-    let editUnitOfMeasure: UnitOfMeasure = 'pieces';
   </script>
   
   <div class="recipe-manager">

@@ -176,7 +176,7 @@ class Post {
         
         try {
             // Validate decrypted data
-            if (empty($data['name']) || empty($data['price']) || empty($data['category'])) {
+            if (empty($data['name']) || !isset($data['price']) || empty($data['category'])) {
                 return [
                     "status" => false,
                     "message" => "All fields are required"
@@ -201,7 +201,7 @@ class Post {
             ];
             
             if (in_array($data['category'], ['Pizza', 'Drinks'])) {
-                $params[':size'] = $data['size'];
+                $params[':size'] = $data['size'] ?? 'Standard';
             }
             
             $stmt->execute($params);
@@ -219,10 +219,11 @@ class Post {
                     VALUES (:name, :image, :price, :category, :size)";
             $stmt = $conn->prepare($sql);
             
-            $size = $data['size'] ?? 'base-size';
+            $size = $data['size'] ?? 'Standard';
+            $image = $data['image'] ?? '';
             
             $stmt->bindParam(':name', $data['name']);
-            $stmt->bindParam(':image', $data['image']);
+            $stmt->bindParam(':image', $image);
             $stmt->bindParam(':price', $data['price']);
             $stmt->bindParam(':category', $data['category']);
             $stmt->bindParam(':size', $size);
@@ -586,7 +587,8 @@ class Post {
             if ($checkStmt->fetchColumn() > 0) {
                 return [
                     "status" => false,
-                    "message" => "This ingredient is already in the recipe"
+                    "message" => "This ingredient is already in the recipe",
+                    "data" => null
                 ];
             }
 
@@ -596,6 +598,14 @@ class Post {
             $stmt->bindParam(':inventory_id', $data['inventory_id']);
             $stmt->execute();
             $ingredient = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$ingredient) {
+                return [
+                    "status" => false,
+                    "message" => "Ingredient not found",
+                    "data" => null
+                ];
+            }
 
             // Insert new ingredient
             $sql = "INSERT INTO product_ingredients 
@@ -611,9 +621,20 @@ class Post {
             $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
             $stmt->execute();
 
-            return ["status" => true, "message" => "Ingredient added successfully"];
+            return [
+                "status" => true, 
+                "message" => "Ingredient added successfully",
+                "data" => [
+                    "product_ingredient_id" => $conn->lastInsertId(),
+                    "ingredient_name" => $ingredient['item_name']
+                ]
+            ];
         } catch (PDOException $e) {
-            return ["status" => false, "message" => $e->getMessage()];
+            return [
+                "status" => false, 
+                "message" => $e->getMessage(),
+                "data" => null
+            ];
         }
     }
 

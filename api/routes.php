@@ -87,6 +87,7 @@ try {
                         
                         $data = $encryption->decrypt($encryptedData);
                         $result = $post->addMenuItem($data);
+                        
                         echo json_encode([
                             "status" => true,
                             "data" => $encryption->encrypt($result)
@@ -123,8 +124,27 @@ try {
                     break;
                     
                 case 'add-product-ingredient':
-                    $data = json_decode(file_get_contents('php://input'), true);
-                    echo json_encode($post->addProductIngredient($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $post->addProductIngredient($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                     
                 case 'add-item-stock':
@@ -243,6 +263,40 @@ try {
                     
                 case 'add-sale':
                     echo json_encode($post->addSale($data));
+                    break;
+                    
+                case 'upload-image':
+                    try {
+                        if (!isset($_FILES['image'])) {
+                            throw new Exception('No image file received');
+                        }
+
+                        $file = $_FILES['image'];
+                        $fileName = time() . '_' . basename($file['name']);
+                        $targetPath = __DIR__ . '/../uploads/' . $fileName;
+
+                        // Check if it's actually an image
+                        $check = getimagesize($file['tmp_name']);
+                        if ($check === false) {
+                            throw new Exception('File is not an image');
+                        }
+
+                        // Move uploaded file
+                        if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+                            echo json_encode([
+                                'status' => true,
+                                'filename' => $fileName,
+                                'message' => 'File uploaded successfully'
+                            ]);
+                        } else {
+                            throw new Exception('Failed to move uploaded file');
+                        }
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            'status' => false,
+                            'message' => $e->getMessage()
+                        ]);
+                    }
                     break;
                     
                 default:
@@ -442,8 +496,27 @@ try {
                     }
                     break;
                 case 'update-product-ingredient':
-                    $data = json_decode(file_get_contents('php://input'), true);
-                    echo json_encode($update->updateProductIngredient($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $update->updateProductIngredient($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                 case 'update-item-stock':
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -470,7 +543,27 @@ try {
                     echo json_encode($delete->deleteItemStock($data));
                     break;
                 case 'delete-menu-item':
-                    echo json_encode($delete->deleteMenuItem($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->deleteMenuItem($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                 case 'delete-order':
                     echo json_encode($delete->deleteOrder($data));
@@ -479,8 +572,27 @@ try {
                     echo json_encode($delete->deleteAllOrders());
                     break;
                 case 'delete-product-ingredient':
-                    $data = json_decode(file_get_contents('php://input'), true);
-                    echo json_encode($delete->deleteProductIngredient($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->deleteProductIngredient($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                 case 'clear-cart':
                     if (!isset($data['user_id'])) {
