@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { ApiService } from '$lib/services/api';
+  import Alert from '$lib/components/Alert.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -51,6 +52,20 @@
   // Add new state variable
   let productAvailability: Record<number, number> = {};
 
+  // Alert state management
+  let showAlert = false;
+  let alertMessage = '';
+  let alertType: 'success' | 'error' | 'warning' = 'error';
+
+  function showAlertMessage(message: string, type: 'success' | 'error' | 'warning' = 'error') {
+    alertMessage = message;
+    alertType = type;
+    showAlert = true;
+    setTimeout(() => {
+      showAlert = false;
+    }, 3000);
+  }
+
   // Function to check ingredient availability
   async function checkIngredientAvailability(productId: number, requestedQuantity: number): Promise<boolean> {
     try {
@@ -75,17 +90,17 @@
 
   async function saveCustomer() {
     if (!customerName.trim()) {
-      alert('Please enter customer name');
+      showAlertMessage('Please enter customer name');
       return;
     }
 
     if (!amountPaid) {
-      alert('Please enter amount paid');
+      showAlertMessage('Please enter amount paid');
       return;
     }
 
     if (amountPaid < total) {
-      alert('Amount paid cannot be less than the total amount');
+      showAlertMessage('Amount paid cannot be less than the total amount');
       return;
     }
 
@@ -156,7 +171,7 @@
       }
     } catch (error) {
       console.error('Error saving information:', error);
-      alert('Failed to process order');
+      showAlertMessage('Failed to process order');
     }
   }
 
@@ -293,10 +308,7 @@
       });
       
       if (!result.is_available || newQuantity > result.max_quantity) {
-        alert(`Cannot change quantity: 
-          Insufficient ingredients. 
-          Maximum available: ${result.max_quantity}
-          Debug: ${JSON.stringify(result.debug_info)}`);
+        showAlertMessage(`Cannot change quantity: Insufficient ingredients. Maximum available: ${result.max_quantity}`);
         return;
       }
       
@@ -308,6 +320,10 @@
 </script>
 
 <div class="cart-container">
+  {#if showAlert}
+    <Alert type={alertType} message={alertMessage} />
+  {/if}
+  
   <h2 class="cart-title">Order Summary</h2>
   
   <div class="cart-items-container">
