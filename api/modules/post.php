@@ -745,5 +745,125 @@ class Post {
         return $quantity;
     }
 
+    public function archiveSales($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Insert into archived_sales
+            $archiveSql = "INSERT INTO archived_sales 
+                           (order_id, customer_id, order_date, total_amount, user_id, 
+                            payment_status, archived_date, archived_by)
+                           SELECT o.order_id, o.customer_id, o.order_date, o.total_amount, 
+                                  o.user_id, o.payment_status, NOW(), :archived_by
+                           FROM `order` o
+                           WHERE o.order_id = :order_id";
+            
+            $stmt = $conn->prepare($archiveSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->bindParam(':archived_by', $data['user_id']);
+            $stmt->execute();
+
+            // Delete related records in reverse order of dependencies
+            // Delete from sales
+            $deleteSalesSql = "DELETE FROM sales WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteSalesSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+
+            // Delete from receipt
+            $deleteReceiptSql = "DELETE FROM receipt WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteReceiptSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+
+            // Delete from order_item
+            $deleteOrderItemSql = "DELETE FROM order_item WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteOrderItemSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+
+            // Delete from order
+            $deleteOrderSql = "DELETE FROM `order` WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteOrderSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Sales data archived successfully"
+            ];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to archive sales: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function archiveFilteredSales($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            foreach ($data['order_ids'] as $orderId) {
+                // Insert into archived_sales
+                $archiveSql = "INSERT INTO archived_sales 
+                              (order_id, customer_id, order_date, total_amount, user_id, 
+                               payment_status, archived_date, archived_by)
+                              SELECT o.order_id, o.customer_id, o.order_date, o.total_amount, 
+                                     o.user_id, o.payment_status, NOW(), :archived_by
+                              FROM `order` o
+                              WHERE o.order_id = :order_id";
+                
+                $stmt = $conn->prepare($archiveSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->bindParam(':archived_by', $data['user_id']);
+                $stmt->execute();
+
+                // Delete related records in reverse order of dependencies
+                // Delete from sales
+                $deleteSalesSql = "DELETE FROM sales WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteSalesSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from receipt
+                $deleteReceiptSql = "DELETE FROM receipt WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteReceiptSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from order_item
+                $deleteOrderItemSql = "DELETE FROM order_item WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteOrderItemSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from order
+                $deleteOrderSql = "DELETE FROM `order` WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteOrderSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+            }
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Sales data archived successfully"
+            ];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to archive sales: " . $e->getMessage()
+            ];
+        }
+    }
+
 }
 ?>

@@ -112,58 +112,50 @@ class Delete {
         global $conn;
         
         if (!isset($data['order_id'])) {
-            return ["status" => false, "message" => "Order ID is required"];
+            return [
+                "status" => false,
+                "message" => "Order ID is required"
+            ];
         }
         
         try {
             $conn->beginTransaction();
             
-            // Get customer_id before deleting the order
-            $sql = "SELECT customer_id FROM `order` WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
+            // Delete from sales first
+            $deleteSalesSql = "DELETE FROM sales WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteSalesSql);
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->execute();
-            $customer_id = $stmt->fetchColumn();
-            
-            // Delete related records first (due to foreign key constraints)
-            // Delete from receipt table
-            $sql = "DELETE FROM receipt WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
+
+            // Delete from receipt
+            $deleteReceiptSql = "DELETE FROM receipt WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteReceiptSql);
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->execute();
-            
-            // Delete from sales table
-            $sql = "DELETE FROM sales WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
+
+            // Delete from order_item
+            $deleteOrderItemSql = "DELETE FROM order_item WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteOrderItemSql);
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->execute();
-            
-            // Delete from order_item table
-            $sql = "DELETE FROM order_item WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
+
+            // Delete from order
+            $deleteOrderSql = "DELETE FROM `order` WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteOrderSql);
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->execute();
-            
-            // Delete from order table
-            $sql = "DELETE FROM `order` WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':order_id', $data['order_id']);
-            $stmt->execute();
-            
-            // Finally, delete the customer
-            if ($customer_id) {
-                $sql = "DELETE FROM customer WHERE customer_id = :customer_id";
-                $stmt = $conn->prepare($sql);
-                $stmt->bindParam(':customer_id', $customer_id);
-                $stmt->execute();
-            }
             
             $conn->commit();
-            return ["status" => true, "message" => "Order and related customer deleted successfully"];
-            
+            return [
+                "status" => true,
+                "message" => "Order deleted successfully"
+            ];
         } catch (PDOException $e) {
             $conn->rollBack();
-            return ["status" => false, "message" => "Failed to delete order: " . $e->getMessage()];
+            return [
+                "status" => false,
+                "message" => "Failed to delete order: " . $e->getMessage()
+            ];
         }
     }
 
@@ -289,6 +281,52 @@ class Delete {
             return [
                 "status" => false,
                 "message" => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteFilteredOrders($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            foreach ($data['order_ids'] as $orderId) {
+                // Delete from sales
+                $deleteSalesSql = "DELETE FROM sales WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteSalesSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from receipt
+                $deleteReceiptSql = "DELETE FROM receipt WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteReceiptSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from order_item
+                $deleteOrderItemSql = "DELETE FROM order_item WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteOrderItemSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from order
+                $deleteOrderSql = "DELETE FROM `order` WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteOrderSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+            }
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Orders deleted successfully"
+            ];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to delete orders: " . $e->getMessage()
             ];
         }
     }

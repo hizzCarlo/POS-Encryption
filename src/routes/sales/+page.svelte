@@ -5,6 +5,7 @@
   import { browser } from '$app/environment';
   import * as XLSX from 'xlsx';
   import { ApiService } from '$lib/services/api';
+  import { userStore } from '$lib/auth';
 
   let y = 0;
   let innerWidth = 0;
@@ -559,42 +560,31 @@
     printWindow.document.close();
   }
 
-  // Add this function to handle order deletion
-  async function deleteOrder(orderId) {
+  // Update the deleteOrder function
+  async function deleteOrder(orderId: number) {
     if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
       return;
     }
 
     try {
-      const response = await fetch('/api/delete-order', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ order_id: orderId })
+      const response = await ApiService.delete('delete-order', {
+        order_id: orderId,
+        user_id: $userStore.userId
       });
 
-      const result = await response.json();
-      
-      if (result.status) {
-        // Fetch fresh data from the server instead of filtering locally
-        const refreshResponse = await fetch('/api/get-sales-data');
-        const refreshResult = await refreshResponse.json();
-        
-        if (refreshResult.status) {
-          // Update all data states
-          salesData = refreshResult.data;
-          chartData = refreshResult.chartData;
-          dailyChartData = refreshResult.dailyChartData;
+      if (response.status) {
+        // Refresh the sales data
+        const refreshResponse = await ApiService.get('get-sales-data');
+        if (refreshResponse.status) {
+          salesData = refreshResponse.data;
+          chartData = refreshResponse.chartData;
+          dailyChartData = refreshResponse.dailyChartData;
           filteredSalesData = salesData;
-          
-          // Reinitialize charts with new data
           await initializeCharts();
-          
           alert('Order deleted successfully');
         }
       } else {
-        alert('Failed to delete order: ' + result.message);
+        alert('Failed to delete order: ' + response.message);
       }
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -602,44 +592,111 @@
     }
   }
 
+  // Update deleteAllOrders to only delete filtered data
   async function deleteAllOrders() {
-    if (!confirm('Are you sure you want to delete ALL orders? This action cannot be undone!')) {
-        return;
+    if (filteredSalesData.length === 0) {
+      alert('No data to delete');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete ALL filtered orders? This action cannot be undone!')) {
+      return;
     }
 
     try {
-        const response = await fetch('/api/delete-all-orders', {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+      const orderIds = filteredSalesData.map(sale => sale.order_id);
+      const response = await ApiService.delete('delete-filtered-orders', {
+        order_ids: orderIds,
+        user_id: $userStore.userId
+      });
 
-        const result = await response.json();
-        
-        if (result.status) {
-            // Fetch fresh data from the server instead of clearing locally
-            const refreshResponse = await fetch('/api/get-sales-data');
-            const refreshResult = await refreshResponse.json();
-            
-            if (refreshResult.status) {
-                // Update all data states
-                salesData = refreshResult.data;
-                chartData = refreshResult.chartData;
-                dailyChartData = refreshResult.dailyChartData;
-                filteredSalesData = salesData;
-                
-                // Reinitialize charts with new data
-                await initializeCharts();
-                
-                alert('All orders deleted successfully');
-            }
-        } else {
-            alert('Failed to delete orders: ' + result.message);
+      if (response.status) {
+        // Refresh the sales data
+        const refreshResponse = await ApiService.get('get-sales-data');
+        if (refreshResponse.status) {
+          salesData = refreshResponse.data;
+          chartData = refreshResponse.chartData;
+          dailyChartData = refreshResponse.dailyChartData;
+          filteredSalesData = salesData;
+          await initializeCharts();
+          alert('Selected orders deleted successfully');
         }
+      } else {
+        alert('Failed to delete orders: ' + response.message);
+      }
     } catch (error) {
-        console.error('Error deleting orders:', error);
-        alert('Error deleting orders. Please try again.');
+      console.error('Error deleting orders:', error);
+      alert('Error deleting orders. Please try again.');
+    }
+  }
+
+  // Add this function to handle archiving
+  async function archiveSale(orderId: number) {
+    if (!confirm('Are you sure you want to archive this sale? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await ApiService.post('archive-sales', {
+        order_id: orderId,
+        user_id: $userStore.userId
+      });
+
+      if (response.status) {
+        // Refresh the sales data
+        const refreshResponse = await ApiService.get('get-sales-data');
+        if (refreshResponse.status) {
+          salesData = refreshResponse.data;
+          chartData = refreshResponse.chartData;
+          dailyChartData = refreshResponse.dailyChartData;
+          filteredSalesData = salesData;
+          await initializeCharts();
+          alert('Sale archived successfully');
+        }
+      } else {
+        alert('Failed to archive sale: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error archiving sale:', error);
+      alert('Error archiving sale. Please try again.');
+    }
+  }
+
+  // Add this function to handle archiving filtered data
+  async function archiveFilteredSales() {
+    if (filteredSalesData.length === 0) {
+      alert('No data to archive');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to archive all filtered sales? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const orderIds = filteredSalesData.map(sale => sale.order_id);
+      const response = await ApiService.post('archive-filtered-sales', {
+        order_ids: orderIds,
+        user_id: $userStore.userId
+      });
+
+      if (response.status) {
+        // Refresh the sales data
+        const refreshResponse = await ApiService.get('get-sales-data');
+        if (refreshResponse.status) {
+          salesData = refreshResponse.data;
+          chartData = refreshResponse.chartData;
+          dailyChartData = refreshResponse.dailyChartData;
+          filteredSalesData = salesData;
+          await initializeCharts();
+          alert('Selected sales archived successfully');
+        }
+      } else {
+        alert('Failed to archive sales: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error archiving sales:', error);
+      alert('Error archiving sales. Please try again.');
     }
   }
 
@@ -752,7 +809,14 @@
           on:click={deleteAllOrders}
           class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
         >
-          Delete All Orders
+          Delete Filtered Orders
+        </button>
+
+        <button
+          on:click={archiveFilteredSales}
+          class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"
+        >
+          Archive Filtered Sales
         </button>
       </div>
     </div>
@@ -797,9 +861,15 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                   <button
                     on:click={() => deleteOrder(sale.order_id)}
-                    class="text-red-600 hover:text-red-900 font-medium"
+                    class="text-red-600 hover:text-red-900 font-medium mr-2"
                   >
                     Delete
+                  </button>
+                  <button
+                    on:click={() => archiveSale(sale.order_id)}
+                    class="text-blue-600 hover:text-blue-900 font-medium"
+                  >
+                    Archive
                   </button>
                 </td>
               </tr>

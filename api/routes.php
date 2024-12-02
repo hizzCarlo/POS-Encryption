@@ -370,6 +370,54 @@ try {
                     }
                     break;
                     
+                case 'archive-sales':
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $post->archiveSales($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
+                    
+                case 'archive-filtered-sales':
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $post->archiveFilteredSales($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
+                    
                 default:
                     // For other POST requests, use JSON
                     $data = json_decode(file_get_contents("php://input"), true);
@@ -665,7 +713,27 @@ try {
                     }
                     break;
                 case 'delete-order':
-                    echo json_encode($delete->deleteOrder($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->deleteOrder($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                 case 'delete-all-orders':
                     echo json_encode($delete->deleteAllOrders());
@@ -712,6 +780,29 @@ try {
                         break;
                     }
                     echo json_encode($delete->removeFromCart($data['product_id'], $data['user_id']));
+                    break;
+                case 'delete-filtered-orders':
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->deleteFilteredOrders($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);

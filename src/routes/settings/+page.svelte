@@ -379,7 +379,7 @@
                 <img 
                   src={editItem.image instanceof File 
                     ? URL.createObjectURL(editItem.image) 
-                    : `http://localhost/POS/uploads/${editItem.image}`}
+                    : `http://localhost/POS-encrypted/uploads/${editItem.image}`}
                   alt={editItem.name}
                   class="w-full h-48 object-cover rounded-md mb-2"
                   on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
@@ -435,7 +435,7 @@
           <img 
             src={item.image instanceof File ? 
                 URL.createObjectURL(item.image) : 
-                `http://localhost/POS/uploads/${item.image}`}
+                `http://localhost/POS-encrypted/uploads/${item.image}`}
             alt={item.name} 
             class="item-image" 
             on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
