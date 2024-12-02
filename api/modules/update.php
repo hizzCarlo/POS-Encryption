@@ -7,31 +7,183 @@ header('Content-Type: application/json');
 class Update {
     public function updateItemStock($data) {
         global $conn;
-        $inventory_id = $data['inventory_id'];
-        $stock_quantity = $data['stock_quantity'];
-
-        $sql = "UPDATE inventory SET stock_quantity = :stock_quantity, last_updated = NOW() WHERE inventory_id = :inventory_id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':inventory_id', $inventory_id);
-        $stmt->bindParam(':stock_quantity', $stock_quantity);
-
+        
         try {
-            $stmt->execute();
-            
-            // Fetch the updated record to get the new timestamp
-            $sql = "SELECT last_updated FROM inventory WHERE inventory_id = :inventory_id";
+            // Get current item details
+            $sql = "SELECT unit_of_measure, stock_quantity FROM inventory 
+                    WHERE inventory_id = :inventory_id";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':inventory_id', $inventory_id);
+            $stmt->bindParam(':inventory_id', $data['inventory_id']);
+            $stmt->execute();
+            $currentItem = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$currentItem) {
+                throw new Exception("Item not found");
+            }
+
+            // Convert quantity if units are different
+            $quantity = $data['stock_quantity'];
+            if ($currentItem['unit_of_measure'] !== $data['unit_of_measure']) {
+                try {
+                    $quantity = $this->convertUnits(
+                        $data['stock_quantity'],
+                        $data['unit_of_measure'],
+                        $currentItem['unit_of_measure']
+                    );
+                    
+                    // Log the conversion for debugging
+                    error_log(sprintf(
+                        "Unit conversion: %f %s = %f %s",
+                        $data['stock_quantity'],
+                        $data['unit_of_measure'],
+                        $quantity,
+                        $currentItem['unit_of_measure']
+                    ));
+                } catch (Exception $e) {
+                    return [
+                        "status" => false,
+                        "message" => "Unit conversion error: " . $e->getMessage()
+                    ];
+                }
+            }
+
+            // Update the inventory
+            $sql = "UPDATE inventory 
+                    SET stock_quantity = :stock_quantity,
+                        unit_of_measure = :unit_of_measure,
+                        last_updated = NOW() 
+                    WHERE inventory_id = :inventory_id";
+
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':inventory_id', $data['inventory_id']);
+            $stmt->bindParam(':stock_quantity', $quantity);
+            $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
+            $stmt->execute();
+
+            // Fetch the updated record
+            $sql = "SELECT * FROM inventory WHERE inventory_id = :inventory_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':inventory_id', $data['inventory_id']);
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             return [
-                "status" => true, 
+                "status" => true,
                 "message" => "Item stock updated successfully",
-                "last_updated" => $result['last_updated']
+                "data" => $result
             ];
         } catch (PDOException $e) {
-            return ["status" => false, "message" => "Failed to update item stock: " . $e->getMessage()];
+            return [
+                "status" => false,
+                "message" => "Database error: " . $e->getMessage()
+            ];
+        } catch (Exception $e) {
+            return [
+                "status" => false,
+                "message" => $e->getMessage()
+            ];
+        }
+    }
+
+    private function convertUnits($value, $fromUnit, $toUnit) {
+        if ($fromUnit === $toUnit) return $value;
+
+        // Define base units and conversion factors
+        // Each unit's value represents how many base units it contains
+        $conversions = [
+            'mass' => [
+                'grams' => 1000,         // 1 gram = 1 gram (base unit)
+                'kilograms' => 1,        // 1 kg = 1000 grams
+                'pounds' => 453.59237,   // 1 pound = 453.59237 grams
+                'ounces' => 28.349523125 // 1 ounce = 28.349523125 grams
+            ],
+            'volume' => [
+                'milliliters' => 1,      // 1 ml = 1 ml (base unit)
+                'liters' => 1000,        // 1 liter = 1000 ml
+                'cups' => 236.588237,    // 1 cup = 236.588237 ml
+                'tablespoons' => 14.7867648,  // 1 tbsp = 14.7867648 ml
+                'teaspoons' => 4.92892159     // 1 tsp = 4.92892159 ml
+            ]
+        ];
+
+        $unitTypes = [
+            // Mass units
+            'grams' => ['type' => 'mass', 'abbr' => 'g'],
+            'kilograms' => ['type' => 'mass', 'abbr' => 'kg'],
+            'pounds' => ['type' => 'mass', 'abbr' => 'lbs'],
+            'ounces' => ['type' => 'mass', 'abbr' => 'oz'],
+            
+            // Volume units
+            'milliliters' => ['type' => 'volume', 'abbr' => 'ml'],
+            'liters' => ['type' => 'volume', 'abbr' => 'l'],
+            'cups' => ['type' => 'volume', 'abbr' => 'cup'],
+            'tablespoons' => ['type' => 'volume', 'abbr' => 'tbsp'],
+            'teaspoons' => ['type' => 'volume', 'abbr' => 'tsp'],
+            
+            // Count units
+            'pieces' => ['type' => 'count', 'abbr' => 'pcs']
+        ];
+
+        // Validate units
+        if (!isset($unitTypes[$fromUnit]) || !isset($unitTypes[$toUnit])) {
+            throw new Exception("Invalid unit type: " . 
+                (!isset($unitTypes[$fromUnit]) ? $fromUnit : $toUnit));
+        }
+
+        // Handle count units
+        if ($unitTypes[$fromUnit]['type'] === 'count' || $unitTypes[$toUnit]['type'] === 'count') {
+            if ($unitTypes[$fromUnit]['type'] !== $unitTypes[$toUnit]['type']) {
+                throw new Exception("Cannot convert between count and " . 
+                    $unitTypes[$toUnit]['type'] . " units");
+            }
+            return $value;
+        }
+
+        // Check if units are of the same type
+        if ($unitTypes[$fromUnit]['type'] !== $unitTypes[$toUnit]['type']) {
+            throw new Exception(sprintf(
+                "Cannot convert between %s (%s) and %s (%s)",
+                $unitTypes[$fromUnit]['type'],
+                $fromUnit,
+                $unitTypes[$toUnit]['type'],
+                $toUnit
+            ));
+        }
+
+        $type = $unitTypes[$fromUnit]['type'];
+
+        try {
+            // Convert to base unit first (e.g., everything to grams or milliliters)
+            $baseValue = $value * $conversions[$type][$fromUnit];
+            
+            // Then convert from base unit to target unit
+            // For example: if converting 1 kg to grams:
+            // 1 kg * 1000 (to get grams) = 1000 grams
+            // If converting 1000 grams to kg:
+            // 1000 grams / 1000 = 1 kg
+            $convertedValue = $baseValue / $conversions[$type][$toUnit];
+            
+            // Log the conversion for debugging
+            error_log(sprintf(
+                "Converting %f %s to %s: Base value = %f, Final value = %f",
+                $value,
+                $fromUnit,
+                $toUnit,
+                $baseValue,
+                $convertedValue
+            ));
+
+            // Round to 4 decimal places to avoid floating point issues
+            return round($convertedValue, 4);
+        } catch (Exception $e) {
+            error_log("Conversion error: " . $e->getMessage());
+            error_log(sprintf(
+                "Attempted conversion: %f %s to %s",
+                $value,
+                $fromUnit,
+                $toUnit
+            ));
+            throw $e;
         }
     }
 

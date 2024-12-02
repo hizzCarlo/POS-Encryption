@@ -1,8 +1,8 @@
 export interface MenuItem {
     product_id: number;
     name: string;
-    image: string | File;
-    price: number;
+    image: string;
+    price: number | string;
     category: string;
     size?: string;
 }

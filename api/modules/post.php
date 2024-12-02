@@ -294,7 +294,7 @@ class Post {
         try {
             $conn->beginTransaction();
             
-            // 1. First, verify stock availability for all items
+            // Verify stock availability for all items
             foreach ($data['order_items'] as $item) {
                 $sql = "SELECT pi.inventory_id, pi.quantity_needed, i.stock_quantity 
                         FROM product_ingredients pi
@@ -318,7 +318,7 @@ class Post {
                 }
             }
             
-            // 2. Create the order
+            // Create the order
             $sql = "INSERT INTO `order` (customer_id, order_date, total_amount, user_id, payment_status) 
                     VALUES (:customer_id, NOW(), :total_amount, :user_id, :payment_status)";
             $stmt = $conn->prepare($sql);
@@ -330,7 +330,7 @@ class Post {
             
             $order_id = $conn->lastInsertId();
             
-            // 3. Create order items
+            // Create order items
             foreach ($data['order_items'] as $item) {
                 $sql = "INSERT INTO order_item (order_id, product_id, quantity, price) 
                         VALUES (:order_id, :product_id, :quantity, :price)";
@@ -340,10 +340,8 @@ class Post {
                 $stmt->bindParam(':quantity', $item['quantity']);
                 $stmt->bindParam(':price', $item['price']);
                 $stmt->execute();
-            }
-            
-            // 4. Update inventory quantities
-            foreach ($data['order_items'] as $item) {
+                
+                // Update inventory quantities
                 $sql = "SELECT pi.inventory_id, pi.quantity_needed 
                         FROM product_ingredients pi 
                         WHERE pi.product_id = :product_id";
@@ -367,14 +365,6 @@ class Post {
                 }
             }
             
-            // 5. Create receipt
-            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount) 
-                    VALUES (:order_id, NOW(), :total_amount)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':order_id', $order_id);
-            $stmt->bindParam(':total_amount', $data['total_amount']);
-            $stmt->execute();
-            
             $conn->commit();
             return [
                 "status" => true,
@@ -394,14 +384,14 @@ class Post {
     public function addCustomer($data) {
         global $conn;
         
-        if (!isset($data['Name']) || !isset($data['total_amount'])) {
-            return [
-                "status" => false,
-                "message" => "Customer name and total amount are required"
-            ];
-        }
-
         try {
+            if (!isset($data['Name']) || !isset($data['total_amount'])) {
+                return [
+                    "status" => false,
+                    "message" => "Customer name and total amount are required"
+                ];
+            }
+
             $sql = "INSERT INTO customer (Name, total_amount) 
                     VALUES (:name, :total_amount)";
             $stmt = $conn->prepare($sql);
@@ -462,13 +452,6 @@ class Post {
 
     public function addReceipt($data) {
         global $conn;
-        
-        if (!isset($data['order_id']) || !isset($data['total_amount'])) {
-            return [
-                "status" => false,
-                "message" => "Missing required fields: order_id and total_amount"
-            ];
-        }
         
         try {
             // First check if the order exists

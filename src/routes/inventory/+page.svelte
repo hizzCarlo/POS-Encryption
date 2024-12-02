@@ -45,7 +45,7 @@
         }
     }
 
-    function startEdit(item: typeof items[0]) {
+    function startEdit(item: InventoryItem) {
         editingItem = item.inventory_id;
         itemName = item.item_name;
         stockQuantity = item.stock_quantity;
@@ -99,22 +99,31 @@
     }
 
     async function updateItemStock(inventoryId: number) {
-        const response = await fetch('/api/update-item-stock', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+        try {
+            const result = await ApiService.put('update-item-stock', {
                 inventory_id: inventoryId,
-                item_name: itemName,
                 stock_quantity: stockQuantity,
                 unit_of_measure: unitOfMeasure
-            }),
-        });
-        const result = await response.json();
-        if (result.status) {
-            editingItem = null;
-            await fetchItems();
+            });
+
+            if (result.status) {
+                editingItem = null;
+                await fetchItems();
+                showAlert = true;
+                alertType = 'success';
+                alertMessage = 'Stock updated successfully';
+            } else {
+                showAlert = true;
+                alertType = 'error';
+                alertMessage = result.message || 'Failed to update stock';
+            }
+            setTimeout(() => showAlert = false, 3000);
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert = true;
+            alertType = 'error';
+            alertMessage = 'Failed to update stock';
+            setTimeout(() => showAlert = false, 3000);
         }
     }
 

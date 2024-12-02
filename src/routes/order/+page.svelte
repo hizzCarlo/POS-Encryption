@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import SideNav from '$lib/sideNav.svelte';
   import Header from '$lib/header.svelte';
   import ItemCard from '$lib/itemCard.svelte';
@@ -122,22 +123,100 @@
     }
   }
 
-  async function addToCart(product: Product) {
+  async function updateCartQuantity(productId: number, newQuantity: number) {
     try {
-        const result = await ApiService.post('add-to-cart', {
-            product_id: product.product_id,
-            quantity: 1,
-            user_id: userId
-        });
-
-        if (result.status) {
-            await fetchCartItems();
-        } else {
-            alert(result.message);
+      const result = await ApiService.get<{
+        is_available: boolean, 
+        max_quantity: number, 
+        debug_info: any
+      }>(
+        'check-ingredient-availability',
+        {
+          product_id: productId.toString(),
+          quantity: newQuantity.toString()
         }
+      );
+      
+      console.log('Update Cart Quantity Check:', {
+        productId,
+        newQuantity,
+        result
+      });
+      
+      if (!result.is_available || newQuantity > result.max_quantity) {
+        alert(`Cannot update quantity: Maximum available is ${result.max_quantity}`);
+        return false;
+      }
+      
+      cartItems = cartItems.map(item =>
+        item.id === productId
+          ? { ...item, quantity: newQuantity }
+          : item
+      );
+
+      if (browser) {
+        localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+      }
+      
+      return true;
     } catch (error) {
-        console.error('Error:', error);
-        alert('Failed to add item to cart');
+      console.error('Error updating cart quantity:', error);
+      return false;
+    }
+  }
+
+  async function addToCart(product: Product) {
+    const existingItem = cartItems.find(item => item.id === product.product_id);
+    const newQuantity = existingItem ? existingItem.quantity + 1 : 1;
+    
+    try {
+      const result = await ApiService.get<{
+        is_available: boolean, 
+        max_quantity: number, 
+        debug_info: any
+      }>(
+        'check-ingredient-availability',
+        {
+          product_id: product.product_id.toString(),
+          quantity: newQuantity.toString()
+        }
+      );
+      
+      console.log('Add to Cart Check:', {
+        product,
+        newQuantity,
+        result
+      });
+      
+      if (!result.is_available || newQuantity > result.max_quantity) {
+        alert(`Cannot add more of this item: Maximum available is ${result.max_quantity}`);
+        return;
+      }
+      
+      if (existingItem) {
+        const updated = await updateCartQuantity(product.product_id, newQuantity);
+        if (!updated) return;
+      } else {
+        cartItems = [
+          ...cartItems,
+          {
+            product_id: product.product_id,
+            id: product.product_id,
+            name: product.name,
+            price: product.price,
+            quantity: 1,
+            image: product.image,
+            category: product.category
+          },
+        ];
+
+        if (browser) {
+          localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+        }
+      }
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      alert('Unable to add item to cart');
     }
   }
 
@@ -297,15 +376,17 @@
               <button 
                 type="button" 
                 class="product-card"
-                on:click={() => handleProductClick(group)}
               >
-                <ItemCard product={{
-                  product_id: group.variants[0].product_id,
-                  name: group.name,
-                  image: group.variants[0].image,
-                  price: group.variants[0].price.toString(),
-                  category: group.category
-                }} />
+                <ItemCard 
+                  product={{
+                    product_id: group.variants[0].product_id,
+                    name: group.name,
+                    image: group.variants[0].image,
+                    price: group.variants[0].price.toString(),
+                    category: group.category
+                  }} 
+                  onAddToCart={() => handleProductClick(group)}
+                />
               </button>
             {/each}
           </div>
@@ -321,6 +402,12 @@
         onUpdateQuantity={updateQuantity}
         onRemoveFromCart={removeFromCart}
         {total}
+        on:cartCleared={() => {
+            cartItems = [];
+            if (browser) {
+                localStorage.removeItem(`cart_${$userStore.userId}`);
+            }
+        }}
       />
     </div>
   </div>
@@ -381,6 +468,13 @@
           onUpdateQuantity={updateQuantity}
           onRemoveFromCart={removeFromCart}
           {total}
+          on:cartCleared={() => {
+              cartItems = [];
+              if (browser) {
+                  localStorage.removeItem(`cart_${$userStore.userId}`);
+              }
+              toggleMobileCart();
+          }}
         />
       </div>
     </div>

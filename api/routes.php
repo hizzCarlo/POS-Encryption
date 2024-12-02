@@ -12,7 +12,7 @@ header('Access-Control-Max-Age: 86400'); // 24 hours for preflight cache
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
-}
+} 
 
 require_once __DIR__ . '/config.php';
 require_once 'modules/post.php';
@@ -101,20 +101,51 @@ try {
                     break;
                     
                 case 'add-customer':
-                    $data = json_decode(file_get_contents("php://input"), true);
-                    echo json_encode($post->addCustomer($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $post->addCustomer($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                     
                 case 'add-receipt':
-                    $data = json_decode(file_get_contents("php://input"), true);
-                    if (json_last_error() !== JSON_ERROR_NONE) {
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $post->addReceipt($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
                         echo json_encode([
                             "status" => false,
-                            "message" => "Invalid JSON data: " . json_last_error_msg()
+                            "message" => "Error processing request: " . $e->getMessage()
                         ]);
-                        break;
                     }
-                    echo json_encode($post->addReceipt($data));
                     break;
                     
                 case 'logout':
@@ -258,11 +289,51 @@ try {
                     break;
                     
                 case 'create-order':
-                    echo json_encode($post->createOrder($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $post->createOrder($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                     
                 case 'add-sale':
-                    echo json_encode($post->addSale($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $post->addSale($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                     
                 case 'upload-image':
@@ -442,16 +513,16 @@ try {
                     }
                     break;
                 case 'check-ingredient-availability':
-                    if (!isset($_GET['product_id']) || !isset($_GET['quantity'])) {
-                        echo json_encode([
-                            "status" => false,
-                            "message" => "Product ID and quantity are required"
-                        ]);
-                        break;
+                    $product_id = $_GET['product_id'] ?? null;
+                    $quantity = $_GET['quantity'] ?? 1;
+                    
+                    if ($product_id) {
+                        $result = $get->checkIngredientAvailability($product_id, $quantity);
+                        // Encrypt the response
+                        $encryptedResponse = $encryption->encrypt($result);
+                        echo json_encode(["status" => true, "data" => $encryptedResponse]);
+                        exit;
                     }
-                    $product_id = $_GET['product_id'];
-                    $quantity = $_GET['quantity'];
-                    echo json_encode($get->checkIngredientAvailability($product_id, $quantity));
                     break;
                 case 'get-batch-product-ingredients':
                     $product_ids = json_decode($_GET['product_ids']);
@@ -463,6 +534,16 @@ try {
                         "status" => true,
                         "key" => $_ENV['ENCRYPTION_KEY']
                     ]);
+                    break;
+                case 'test-ingredient-availability':
+                    $product_id = $_GET['product_id'] ?? null;
+                    $quantity = $_GET['quantity'] ?? 1;
+                    
+                    if ($product_id) {
+                        $result = $get->checkIngredientAvailability($product_id, $quantity);
+                        echo json_encode($result);
+                        exit;
+                    }
                     break;
                 default:
                     echo json_encode(["error" => "Invalid request"]);
@@ -518,8 +599,27 @@ try {
                     }
                     break;
                 case 'update-item-stock':
-                    $data = json_decode(file_get_contents('php://input'), true);
-                    echo json_encode($update->updateItemStock($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $update->updateItemStock($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                 default:
                     $data = json_decode(file_get_contents("php://input"), true);

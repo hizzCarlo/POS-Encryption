@@ -1,4 +1,9 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
+  import { ApiService } from '$lib/services/api';
+
+  const dispatch = createEventDispatcher();
+
   interface CartItem {
     id: number;
     name: string;
@@ -86,114 +91,45 @@
 
     try {
       // First save customer info
-      const customerResponse = await fetch('/api/add-customer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          Name: customerName,
-          total_amount: amountPaid
-        })
+      const customerResult = await ApiService.post('add-customer', {
+        Name: customerName,
+        total_amount: amountPaid
       });
-
-      let customerResult;
-      try {
-        customerResult = await customerResponse.json();
-      } catch (e) {
-        console.error('Customer Response:', await customerResponse.text());
-        throw new Error('Invalid JSON in customer response');
-      }
 
       if (customerResult.status) {
         // Create order
-        const orderResponse = await fetch('/api/create-order', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            customer_id: customerResult.customer_id,
-            total_amount: total,
-            user_id: userId,
-            payment_status: 'paid',
-            order_items: cartItems.map(item => ({
-              product_id: item.id,
-              quantity: item.quantity,
-              price: item.price
-            }))
-          })
+        const orderResult = await ApiService.post('create-order', {
+          customer_id: customerResult.customer_id,
+          total_amount: total,
+          user_id: userId,
+          payment_status: 'paid',
+          order_items: cartItems.map(item => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            price: item.price
+          }))
         });
-
-        let orderResult;
-        try {
-          orderResult = await orderResponse.json();
-        } catch (e) {
-          console.error('Order Response:', await orderResponse.text());
-          throw new Error('Invalid JSON in order response');
-        }
 
         if (orderResult.status) {
           // Record sale
-          const saleResponse = await fetch('/api/add-sale', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              order_id: orderResult.order_id,
-              total_sales: total,
-              user_id: userId
-            })
+          const saleResult = await ApiService.post('add-sale', {
+            order_id: orderResult.order_id,
+            total_sales: total,
+            user_id: userId
           });
-
-          let saleResult;
-          try {
-            saleResult = await saleResponse.json();
-          } catch (e) {
-            console.error('Sale Response:', await saleResponse.text());
-            throw new Error('Invalid JSON in sale response');
-          }
 
           if (saleResult.status) {
             // Generate receipt
-            const receiptResponse = await fetch('/api/add-receipt', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                order_id: orderResult.order_id,
-                total_amount: total
-              })
+            const receiptResult = await ApiService.post('add-receipt', {
+              order_id: orderResult.order_id,
+              total_amount: total
             });
 
-            let receiptResult;
-            try {
-              receiptResult = await receiptResponse.json();
-            } catch (e) {
-              console.error('Receipt Response:', await receiptResponse.text());
-              throw new Error('Invalid JSON in receipt response');
-            }
-
             if (receiptResult.status) {
-              // Clear cart from database
-              const clearCartResponse = await fetch('/api/clear-cart', {
-                method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  user_id: userId
-                })
-              });
-
-              const clearCartResult = await clearCartResponse.json();
-              if (!clearCartResult.status) {
-                console.error('Failed to clear cart:', clearCartResult.message);
-              }
-
-              // Prepare receipt data
+              // Clear cart
+              await ApiService.delete('clear-cart', { user_id: userId });
+              
+              // Show receipt modal
               receiptData = {
                 receipt_id: receiptResult.receipt_id,
                 customer_name: customerName,
@@ -204,25 +140,23 @@
                 change: change
               };
               
-              showReceiptModal = true; // Show the receipt modal
-              cartItems = []; // Clear cart
+              showReceiptModal = true;
+              
+              // Clear all cart-related data
+              cartItems = [];
               customerName = '';
               amountPaid = 0;
-            } else {
-              alert('Failed to generate receipt: ' + receiptResult.message);
+              change = 0;
+              
+              // Dispatch event to notify parent component
+              dispatch('cartCleared');
             }
-          } else {
-            alert('Failed to record sale: ' + saleResult.message);
           }
-        } else {
-          alert('Failed to save order information: ' + orderResult.message);
         }
-      } else {
-        alert('Failed to save customer information: ' + customerResult.message);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving information:', error);
-      alert(error.message || 'Failed to save information');
+      alert('Failed to process order');
     }
   }
 
@@ -334,6 +268,43 @@
       // printWindow.close();
     };
   }
+
+  async function handleQuantityChange(item: CartItem, change: number) {
+    const newQuantity = item.quantity + change;
+    if (newQuantity < 1) return;
+    
+    try {
+      const result = await ApiService.get<{
+        is_available: boolean, 
+        max_quantity: number, 
+        debug_info: any
+      }>(
+        'check-ingredient-availability',
+        {
+          product_id: item.id.toString(),
+          quantity: newQuantity.toString()
+        }
+      );
+      
+      console.log('Availability Check Result:', {
+        item: item,
+        newQuantity: newQuantity,
+        result: result
+      });
+      
+      if (!result.is_available || newQuantity > result.max_quantity) {
+        alert(`Cannot change quantity: 
+          Insufficient ingredients. 
+          Maximum available: ${result.max_quantity}
+          Debug: ${JSON.stringify(result.debug_info)}`);
+        return;
+      }
+      
+      onUpdateQuantity(item.id, newQuantity);
+    } catch (error) {
+      console.error('Error checking quantity availability:', error);
+    }
+  }
 </script>
 
 <div class="cart-container">
@@ -348,24 +319,20 @@
             <h3>{item.name}</h3>
             <p>₱{item.price}</p>
             <div class="quantity-controls">
-              <button on:click={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
+              <button 
+                class="quantity-btn"
+                on:click={() => handleQuantityChange(item, -1)}
+                disabled={item.quantity <= 1}
+              >
+                -
+              </button>
               <span>{item.quantity}</span>
               <button 
-                on:click={async () => {
-                  console.log('Current quantity:', item.quantity); // Debug log
-                  console.log('Max quantity:', productAvailability[item.id]); // Debug log
-                  
-                  const canIncrease = await checkIngredientAvailability(item.id, item.quantity + 1);
-                  console.log('Can increase?', canIncrease); // Debug log
-                  
-                  if (canIncrease) {
-                    onUpdateQuantity(item.id, item.quantity + 1);
-                  } else {
-                    alert(`Cannot add more ${item.name}. Limited by ingredient availability.`);
-                  }
-                }}
-                disabled={productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
-              >+</button>
+                class="quantity-btn"
+                on:click={() => handleQuantityChange(item, 1)}
+              >
+                +
+              </button>
             </div>
             {#if productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
               <p class="text-red-500 text-sm">Maximum available quantity reached ({productAvailability[item.id]})</p>

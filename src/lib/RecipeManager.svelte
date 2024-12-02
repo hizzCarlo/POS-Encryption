@@ -26,12 +26,10 @@
     let newIngredient = {
       inventory_id: 0,
       quantity_needed: 0,
-      unit_of_measure: ''
     };
   
     let editingIngredient: number | null = null;
     let editQuantity: number = 0;
-    let editUnitOfMeasure: UnitOfMeasure = 'pieces';
   
     let searchIngredient = '';
     let searchRecipe = '';
@@ -101,7 +99,6 @@
           newIngredient = {
             inventory_id: 0,
             quantity_needed: 0,
-            unit_of_measure: ''
           };
         } else {
           alert(result?.message || 'Failed to add ingredient');
@@ -135,38 +132,7 @@
       }
     }
   
-    async function updateIngredientQuantity(ingredient: Recipe) {
-      try {
-        const result = await ApiService.put<{
-          status: boolean;
-          message: string;
-          data?: any;
-        }>('update-product-ingredient', {
-          product_ingredient_id: ingredient.product_ingredient_id,
-          quantity_needed: editQuantity,
-          unit_of_measure: editUnitOfMeasure
-        });
-
-        if (result && result.status) {
-          await fetchProductRecipe();
-          editingIngredient = null;
-        } else {
-          alert(result?.message || 'Failed to update ingredient');
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        alert('Failed to update ingredient');
-      }
-    }
-  
     $: selectedIngredient = ingredients.find(i => i.inventory_id === newIngredient.inventory_id);
-    $: if (selectedIngredient) {
-      newIngredient.unit_of_measure = selectedIngredient.unit_of_measure;
-    }
-  
-    type UnitOfMeasure = 'pieces' | 'grams' | 'kilograms' | 'milliliters' | 'liters' | 'cups' | 'tablespoons' | 'teaspoons';
-  
-    const unitOptions: UnitOfMeasure[] = ['pieces', 'grams', 'kilograms', 'milliliters', 'liters', 'cups', 'tablespoons', 'teaspoons'];
   </script>
   
   <div class="recipe-manager">
@@ -200,18 +166,10 @@
               type="number" 
               bind:value={newIngredient.quantity_needed}
               placeholder="Quantity needed"
-              class="p-2 border rounded-md flex-1"
+              class="p-2 border rounded-md w-full"
               min="0"
               step="0.01"
             />
-            <select 
-              bind:value={newIngredient.unit_of_measure}
-              class="p-2 border rounded-md"
-            >
-              {#each unitOptions as unit}
-                <option value={unit}>{unit}</option>
-              {/each}
-            </select>
             <button 
               on:click={addIngredient}
               class="bg-green-500 text-white px-4 py-2 rounded-md whitespace-nowrap"
@@ -256,53 +214,11 @@
                   <tr class="border-t">
                     <td class="py-2">{ingredient.ingredient_name}</td>
                     <td class="py-2">
-                      {#if editingIngredient === ingredient.product_ingredient_id}
-                        <div class="flex gap-2 items-center">
-                          <input 
-                            type="number" 
-                            bind:value={editQuantity}
-                            class="p-2 border rounded w-20"
-                            min="0"
-                            step="0.01"
-                          />
-                          <select 
-                            bind:value={editUnitOfMeasure}
-                            class="p-2 border rounded"
-                          >
-                            {#each unitOptions as unit}
-                              <option value={unit}>{unit}</option>
-                            {/each}
-                          </select>
-                          <button 
-                            on:click={() => updateIngredientQuantity(ingredient)}
-                            class="text-green-500 hover:text-green-700"
-                          >
-                            Save
-                          </button>
-                          <button 
-                            on:click={() => editingIngredient = null}
-                            class="text-gray-500 hover:text-gray-700"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      {:else}
-                        {ingredient.quantity_needed}
-                      {/if}
+                      {ingredient.quantity_needed}
                     </td>
                     <td class="py-2">{ingredient.unit_of_measure}</td>
                     <td class="py-2">{ingredient.stock_quantity}</td>
                     <td class="py-2 flex justify-center gap-2">
-                      <button
-                        on:click={() => {
-                          editingIngredient = ingredient.product_ingredient_id;
-                          editQuantity = ingredient.quantity_needed;
-                          editUnitOfMeasure = ingredient.unit_of_measure as UnitOfMeasure;
-                        }}
-                        class="text-blue-500 hover:text-blue-700"
-                      >
-                        Edit
-                      </button>
                       <button
                         on:click={() => removeIngredient(ingredient.product_ingredient_id)}
                         class="text-red-500 hover:text-red-700"
