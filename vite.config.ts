@@ -9,7 +9,7 @@ export default defineConfig({
 		},
 		proxy: {
 			'/api': {
-				target: 'http://localhost/POS-encrypted/api',
+				target: 'http://localhost/POS-Encryption/api',
 				changeOrigin: true,
 				rewrite: (path) => path.replace(/^\/api/, '')
 			}

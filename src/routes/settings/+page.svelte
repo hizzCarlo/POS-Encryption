@@ -349,7 +349,7 @@
         </div>
         <button 
           type="submit" 
-          class="bg-green-500 text-white px-4 py-2 rounded-md w-full"
+          class="bg-[#ccd5ae] text-white px-4 py-2 rounded-md w-full hover:bg-[#bcc39e]"
           disabled={!newItem.name || !newItem.price || !newItem.category}
         >
           Add Item
@@ -379,7 +379,7 @@
                 <img 
                   src={editItem.image instanceof File 
                     ? URL.createObjectURL(editItem.image) 
-                    : `http://localhost/POS-encrypted/uploads/${editItem.image}`}
+                    : `http://localhost/POS-Encryption/uploads/${editItem.image}`}
                   alt={editItem.name}
                   class="w-full h-48 object-cover rounded-md mb-2"
                   on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
@@ -421,7 +421,7 @@
               </select>
             </div>
             <div class="flex gap-2">
-              <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md flex-1">Update</button>
+              <button type="submit" class="bg-[#d4a373] text-white px-4 py-2 rounded-md flex-1 hover:bg-[#bcc39e]">Update</button>
               <button type="button" on:click={closeEditModal} class="bg-gray-500 text-white px-4 py-2 rounded-md flex-1">Cancel</button>
             </div>
           </form>
@@ -435,7 +435,7 @@
           <img 
             src={item.image instanceof File ? 
                 URL.createObjectURL(item.image) : 
-                `http://localhost/POS-encrypted/uploads/${item.image}`}
+                `http://localhost/POS-Encryption/uploads/${item.image}`}
             alt={item.name} 
             class="item-image" 
             on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
@@ -452,7 +452,7 @@
               <button on:click={() => deleteMenuItem(item.product_id)} class="delete-btn">Delete</button>
               <button
                 on:click={() => openRecipeManager(item)}
-                class="bg-blue-500 text-white px-2 py-1 rounded-md text-sm"
+                class="bg-[#d4a373] text-white px-2 py-1 rounded-md text-sm hover:bg-[#bcc39e]"
               >
                 Manage Recipe
               </button>
@@ -486,7 +486,7 @@
     width: 100%;
     min-height: 100vh;
     padding: 1rem;
-    background-color: #f5f5f5;
+    background-color: #fefae0;
   }
 
   .settings-content {
@@ -496,7 +496,7 @@
   }
 
   .item-card {
-    background: white;
+    background: #faedcd;
     border-radius: 8px;
     overflow: hidden;
     transition: transform 0.2s;
@@ -533,7 +533,7 @@
   }
 
   .edit-btn {
-    background-color: #4CAF50;
+    background-color: #ccd5ae;
     color: white;
   }
 
@@ -556,7 +556,7 @@
   }
 
   .modal-content {
-    background: white;
+    background: #faedcd;
     padding: 2rem;
     border-radius: 8px;
     width: 90%;
@@ -581,17 +581,17 @@
   }
 
   .close-btn:hover {
-    color: #666;
+    color: #d4a373;
   }
 
   .current-image {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d4a373;
     padding: 1rem;
     border-radius: 0.5rem;
   }
 
   .current-image img {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d4a373;
   }
 
   .fixed-alert {

@@ -450,10 +450,13 @@
     max-width: 400px;
     background: white;
     border-radius: 0.5rem;
-    padding: 1rem;
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     height: calc(100vh - 4rem);
+    position: absolute;
+    
+    
   }
 
   .cart-title {
@@ -467,6 +470,7 @@
     flex: 1;
     overflow: hidden;
     position: relative;
+    margin: 1rem 0;
   }
 
   .cart-items {
@@ -537,20 +541,6 @@
     border-top: 2px solid #e5e7eb;
   }
 
-  .checkout-btn {
-    flex: 1;
-    padding: 0.75rem;
-    background: #47cb50;
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-  }
-
-  .checkout-btn:hover {
-    background: #3db845;
-  }
-
   .customer-details {
     padding: 1rem;
     border-top: 1px solid #e5e7eb;
@@ -573,11 +563,6 @@
     border-radius: 0.25rem;
     text-align: right;
     font-weight: bold;
-  }
-
-  .checkout-btn:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
   }
 
   .customer-actions {
@@ -666,7 +651,7 @@
     margin: 0.5rem 0;
   }
 
-  .close-btn {
+  .close-btn, .print-btn {
     display: block;
     width: 100%;
     padding: 0.75rem;
@@ -678,23 +663,7 @@
     cursor: pointer;
   }
 
-  .close-btn:hover {
-    background: #374151;
-  }
-
-  .print-btn {
-    display: block;
-    width: 100%;
-    padding: 0.75rem;
-    background: #4B5563;
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    margin-top: 1rem;
-    cursor: pointer;
-  }
-
-  .print-btn:hover {
+  .close-btn:hover, .print-btn:hover {
     background: #374151;
   }
 
@@ -715,21 +684,10 @@
     margin-top: 0.25rem;
   }
 
-  .save-customer-btn:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
-  }
-
-  .quantity-controls button:disabled {
-    background-color: #e5e7eb;
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
   @media (max-width: 768px) {
     .cart-container {
-      padding: 0.5rem;
-      padding-bottom: 95px;
+      padding: 1rem;
+      padding-bottom: 6rem;
     }
 
     .cart-item {

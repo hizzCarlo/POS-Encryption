@@ -53,43 +53,54 @@
     }
 </script>
 
-<div class="flex flex-col items-center w-full px-4 pt-[20vh]">
-    <div class="logo-img mx-auto mb-4 mt-8">
-        <img src="/images/logo.png" class="logo w-[150px] h-[150px] md:w-[200px] md:h-[200px]" alt="Logo">
+<div class="flex flex-col items-center w-full px-4 pt-[5vh] bg-gradient-to-b from-[#faedcd] to-white min-h-screen">
+    <div class="logo-img mx-auto mb-2 mt-8 relative animate-float">
+        <div class="absolute inset-0 blur-xl bg-[#d4a373]/30 rounded-full"></div>
+        <img 
+            src="/images/logo.png" 
+            class="logo w-[250px] h-[250px] md:w-[1000px] md:h-[400px] relative z-10 filter drop-shadow-[0_10px_15px_rgba(212,163,115,0.3)]" 
+            alt="Logo"
+        >
     </div>
-    <div class="card bg-white/60 outline-none mb-6 border-none rounded-[20px] mt-4 pt-4 shadow-2xl w-full max-w-md mx-auto">
+    
+    <h2 class="text-2xl font-dynapuff text-[#d4a373] mb-6 text-center">Create Your Account</h2>
+    
+    <div class="card bg-white/80 backdrop-blur-sm outline-none mb-6 border-none rounded-[20px] mt-4 pt-4 shadow-2xl w-full max-w-md mx-auto">
         <div class="card-body overflow-hidden p-5">
             <form on:submit|preventDefault={register}>
-                <div class="form-group mb-3">
+                <div class="form-group mb-4">
                     <input 
                         type="text" 
-                        class="form-control form-control-sm w-full rounded-full" 
+                        class="form-control form-control-sm w-full rounded-full px-4 py-2 border-2 border-[#faedcd] focus:border-[#d4a373] focus:outline-none transition-colors" 
                         id="username" 
                         bind:value={username} 
-                        placeholder="Create Username"
+                        placeholder="Username"
                         required
                     >
                 </div>
-                <div class="form-group mb-3">
+                <div class="form-group mb-4">
                     <input 
                         type="password" 
-                        class="form-control form-control-sm w-full rounded-full" 
+                        class="form-control form-control-sm w-full rounded-full px-4 py-2 border-2 border-[#faedcd] focus:border-[#d4a373] focus:outline-none transition-colors" 
                         id="password" 
                         bind:value={password} 
-                        placeholder="Put Password"
+                        placeholder="Password"
                         required
                     >
                 </div>
                 <button 
                     type="submit" 
-                    class="btn w-full rounded-full bg-[#41b745] text-white py-2 hover:bg-[#3aa03e] transition-colors"
+                    class="btn w-full rounded-full bg-[#d4a373] hover:bg-[#c49363] text-white py-3 font-medium transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled={!username || !password}
                 >
-                    Create
+                    Create Account
                 </button>
             </form>
             <div class="account-section mt-4 text-right">
-                <a href="/" class="new-account-link text-[#025464] font-bold text-sm hover:text-[#013744] transition-colors">
+                <a 
+                    href="/" 
+                    class="new-account-link text-[#d4a373] font-bold text-sm hover:text-[#c49363] transition-colors"
+                >
                     Back to Login
                 </a>
             </div>
@@ -98,10 +109,17 @@
 </div>
 
 <style>
-    .form-control:focus {
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(65, 183, 69, 0.2);
-        border-color: #41b745;
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .animate-float {
+        animation: float 3s ease-in-out infinite;
     }
 
     .form-control {

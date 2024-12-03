@@ -451,44 +451,94 @@
         justify-content: flex-start;
         overflow-x: hidden;
         overflow-y: auto;
+        background: #faedcd;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+        scrollbar-width: none;
+        scroll-behavior: smooth;
+        scrollbar-color:   #d4a373 #faedcd;
+    }
+    .content::-webkit-scrollbar {
+        width: 2px;
+        background-color: #faedcd;
+    }
+    .content::-webkit-scrollbar-track {
+        background: #faedcd;
+        border-radius: 4px;
+    }
+    .content::-webkit-scrollbar-thumb {
+        background: #d4a373;
+        border-radius: 4px;
+        border: 1px solid #faedcd;
+    }
+    .content::-webkit-scrollbar-thumb:hover {
+        background: #c49262;
     }
     .product-details {
         margin: 20px;
+        text-align: center;
     }
     .stock-table {
         margin: 20px;
         overflow-x: auto;
+        background: #faedcd;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .side-nav {
         margin-top: 50px;
     }
     table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #fefae0;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
+        text-align: center;
+        border-color: #e9edc9;
+        padding: 0.875rem;
+        transition: background-color 0.2s ease;
     }
     th {
-        background-color: #f2f2f2;
+        background: #d4a373;
+        color: white;
+        text-align: center;
+        border: none;
+        padding: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.875rem;
+        letter-spacing: 0.05em;
     }
     button {
-        margin: 0 5px;
-        padding: 8px 16px;
-        cursor: pointer;
-        border: none;
-        border-radius: 4px;
+        padding: 0.625rem 1rem;
+        border-radius: 0.5rem;
         font-weight: 500;
-        transition: background-color 0.2s;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #d4a373;
+        color: white;
+        min-width: 80px;
+        font-size: 0.875rem;
     }
     
     .details {
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
-        padding: 1rem;
+        padding: 1.5rem;
         width: 100%;
+        background: #faedcd;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
     }
     
     .input-field,
@@ -500,6 +550,8 @@
         font-size: 1rem;
         min-height: 2.5rem;
         width: 100%;
+        background: #fefae0;
+        border: 1px solid #d4a373;
     }
     
     .quantity-input {
@@ -518,15 +570,27 @@
     }
     
     .search-bar {
-        margin: 20px;
+        margin: 1rem auto 2rem;
+        text-align: center;
+        max-width: 500px;
+        width: 100%;
     }
     
     .search-input {
         width: 100%;
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        padding: 12px 16px;
+        border: 2px solid #d4a373;
+        border-radius: 8px;
         font-size: 16px;
+        background: #fefae0;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: #c49262;
+        box-shadow: 0 2px 8px rgba(212, 163, 115, 0.2);
     }
     
     .modal-backdrop {
@@ -552,6 +616,7 @@
         max-height: 85vh;
         overflow-y: auto;
         position: relative;
+        background: #fefae0;
     }
     
     .modal-header {
@@ -681,18 +746,20 @@
     }
     
     .stock-table::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 1px;
+        height: 1px;
+        background-color: #faedcd;
     }
     
     .stock-table::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: #faedcd;
         border-radius: 3px;
     }
     
     .stock-table::-webkit-scrollbar-thumb {
-        background: #47cb50;
+        background: #d4a373;
         border-radius: 3px;
+        border: 1px solid #faedcd;
     }
     
     @media screen and (max-width: 768px) {
@@ -739,8 +806,9 @@
         }
     
         .stock-table {
-            margin: 10px;
-            overflow-x: auto;
+            margin: 10px 0;
+            padding: 1rem;
+            background-color: #faedcd;
         }
     
         table {
@@ -831,7 +899,7 @@
         overflow-x: auto;
         margin: 1rem;
         border-radius: 0.5rem;
-        background: white;
+        background: #faedcd;
     }
     
     table {
@@ -854,7 +922,7 @@
     td.flex {
         display: flex;
         gap: 4px;
-        justify-content: flex-start;
+        justify-content: center;
         align-items: center;
         flex-wrap: wrap;
     }
@@ -911,7 +979,7 @@
         display: flex;
         gap: 4px;
         flex-wrap: wrap;
-        justify-content: flex-start;
+        justify-content: center;
     }
     
     /* Adjust the main add item button for mobile */
@@ -934,21 +1002,22 @@
     /* Add smooth scrolling for modal content */
     .modal-content {
         scrollbar-width: thin;
-        scrollbar-color: #47cb50 #f5f5f5;
+        scrollbar-color: #d4a373 #faedcd;
     }
     
     .modal-content::-webkit-scrollbar {
-        width: 6px;
+        width: 1px;
     }
     
     .modal-content::-webkit-scrollbar-track {
-        background: #f5f5f5;
+        background: #faedcd;
         border-radius: 3px;
     }
     
     .modal-content::-webkit-scrollbar-thumb {
-        background: #47cb50;
+        background: #d4a373;
         border-radius: 3px;
+        border: 1px solid #faedcd;
     }
     
     @media screen and (max-width: 768px) {
@@ -966,5 +1035,11 @@
             margin: 10px;
             padding: 1rem;
         }
+    }
+    
+    /* Add hover effect for scrollbar thumb */
+    .stock-table::-webkit-scrollbar-thumb:hover,
+    .modal-content::-webkit-scrollbar-thumb:hover {
+        background: #c49262;
     }
 </style>

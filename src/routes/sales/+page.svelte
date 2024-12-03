@@ -885,10 +885,12 @@
   .content {
     margin-top: 4rem;
     padding: 2rem;
+    background-color: #fefae0;
+    font-family: 'DynaPuff', cursive;
   }
 
   .sales-container {
-    background: white;
+    background: #faedcd;
     border-radius: 0.5rem;
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -899,6 +901,8 @@
     position: sticky;
     top: 0;
     z-index: 1;
+    background-color: #d4a373;
+    color: white;
   }
 
   /* Add some responsive styles */
@@ -918,5 +922,16 @@
 
   .chart-wrapper {
     min-height: 400px;
+    background-color: white; /* Keep chart background white for better visibility */
+  }
+
+  /* Add global font */
+  :global(body) {
+    font-family: 'DynaPuff', cursive;
   }
 </style>
+
+<!-- Add font import in the head of the document -->
+<svelte:head>
+  <link href="https://fonts.googleapis.com/css2?family=DynaPuff&display=swap" rel="stylesheet">
+</svelte:head>
