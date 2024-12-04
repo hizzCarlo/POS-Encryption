@@ -448,13 +448,13 @@
   .cart-container {
     width: 100%;
     max-width: 400px;
-    background: white;
+    background: #faedcd;
     border-radius: 0.5rem;
     padding: 1.5rem;
-    display: flex;
+    display: flex
+;
     flex-direction: column;
     height: calc(100vh - 4rem);
-    position: absolute;
     
     
   }

@@ -642,7 +642,7 @@
   .cart-container {
     position: fixed;
     right: 0;
-    top: 4rem;
+    top: 0rem;
     width: 400px;
     height: calc(100vh - 4rem);
     background: #fefae0;
@@ -668,8 +668,7 @@
   /* Responsive styles */
   @media (min-width: 1401px) {
     .main-content {
-      margin-right: 100px;
-    }
+          }
   }
 
   @media (max-width: 1400px) and (min-width: 1024px) {
@@ -677,7 +676,7 @@
       width: 350px;
     }
     .main-content {
-      margin-right: 100px;
+      
     }
   }
 
@@ -686,7 +685,6 @@
       width: 300px;
     }
     .main-content {
-      margin-right: 200px;
     }
   }
 
