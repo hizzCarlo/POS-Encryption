@@ -137,12 +137,6 @@
         }
       );
       
-      console.log('Update Cart Quantity Check:', {
-        productId,
-        newQuantity,
-        result
-      });
-      
       if (!result.is_available || newQuantity > result.max_quantity) {
         alert(`Cannot update quantity: Maximum available is ${result.max_quantity}`);
         return false;
@@ -181,12 +175,6 @@
           quantity: newQuantity.toString()
         }
       );
-      
-      console.log('Add to Cart Check:', {
-        product,
-        newQuantity,
-        result
-      });
       
       if (!result.is_available || newQuantity > result.max_quantity) {
         alert(`Cannot add more of this item: Maximum available is ${result.max_quantity}`);

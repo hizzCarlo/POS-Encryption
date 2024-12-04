@@ -181,8 +181,12 @@
   }
 
   function printReceipt() {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow || !receiptData) return;
+    if (!receiptData) return;
+
+    // Create a hidden iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
 
     const printContent = `
       <!DOCTYPE html>
@@ -273,14 +277,27 @@
       </html>
     `;
 
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(printContent);
+    doc.close();
+
     // Wait for content to load before printing
-    printWindow.onload = function() {
-      printWindow.print();
-      // Optional: Close the window after printing
-      // printWindow.close();
+    iframe.onload = function() {
+        try {
+            iframe.contentWindow?.print();
+            
+            // Remove the iframe after printing
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+                // Close the receipt modal
+                closeReceiptModal();
+            }, 500);
+        } catch (error) {
+            console.error('Error printing:', error);
+        }
     };
   }
 
@@ -300,12 +317,6 @@
           quantity: newQuantity.toString()
         }
       );
-      
-      console.log('Availability Check Result:', {
-        item: item,
-        newQuantity: newQuantity,
-        result: result
-      });
       
       if (!result.is_available || newQuantity > result.max_quantity) {
         showAlertMessage(`Cannot change quantity: Insufficient ingredients. Maximum available: ${result.max_quantity}`);
