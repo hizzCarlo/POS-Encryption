@@ -8,10 +8,16 @@
   export let onAddToCart: () => void;
 
   $: isAvailable = $productAvailability[product.product_id] ?? false;
+  
+  // Function to get correct image URL
+  function getImageUrl(image: string): string {
+    if (!image) return '/images/placeholder.jpg';
+    return `https://formalytics.me/uploads/${image}`;
+  }
 
   async function handleAddToCart() {
     if (!isAvailable) {
-      return; // Prevent adding unavailable items
+      return;
     }
     onAddToCart();
   }
@@ -23,11 +29,11 @@
      tabindex="0">
   <div class="image-container">
     <img 
-      src={product.image ? `/uploads/${product.image}` : '/placeholder.jpg'} 
+      src={getImageUrl(product.image)}
       alt={product.name} 
       on:error={(e) => {
         const img = e.currentTarget as HTMLImageElement;
-        img.src = '/placeholder.jpg';
+        img.src = '/images/placeholder.jpg';
       }}
     />
   </div>

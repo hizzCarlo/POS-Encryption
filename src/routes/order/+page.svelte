@@ -271,7 +271,7 @@
   $: total = getTotal();
 
   async function handleProductClick(group: GroupedProduct) {
-    if (['Drinks', 'Pizza'].includes(group.category) && group.variants.length > 1) {
+    if (['Drinks', 'Pizza', 'Burger & Fries', 'Chocolate Series', 'Nachos', 'Cheesecake Series'].includes(group.category) && group.variants.length > 1) {
       selectedProduct = group;
       showSizeModal = true;
     } else {

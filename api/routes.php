@@ -6,6 +6,7 @@ ini_set('display_errors', '0');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Credentials: true');
 header('Content-Type: application/json');
 header('Access-Control-Max-Age: 86400'); // 24 hours for preflight cache
 
@@ -41,6 +42,14 @@ if (isset($_REQUEST['request'])) {
 
 // At the top of the file after other headers
 define('DEBUG', true); // Set to false in production
+
+// At the top of the file
+define('UPLOAD_DIR', __DIR__ . '/../uploads/');
+
+// Ensure upload directory exists
+if (!file_exists(UPLOAD_DIR)) {
+    mkdir(UPLOAD_DIR, 0777, true);
+}
 
 // Update handleError function
 function handleError($error) {

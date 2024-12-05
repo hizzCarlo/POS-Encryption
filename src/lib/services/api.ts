@@ -2,13 +2,20 @@ import { encryptionService } from './encryption.js';
 import { userStore } from '../auth.js';
 import { get } from 'svelte/store';
 
+// Use the API URL from environment variables set in vite config
+const API_BASE = import.meta.env.VITE_API_URL;
+
+if (!API_BASE) {
+    console.error('VITE_API_URL is not defined in environment variables');
+}
+
 export class ApiService {
     static async post<T>(endpoint: string, data: unknown): Promise<T> {
         try {
             const encryptedData = await encryptionService.encrypt(data);
             const user = get(userStore);
             
-            const response = await fetch(`/api/${endpoint}`, {
+            const response = await fetch(`${API_BASE}/${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -41,7 +48,7 @@ export class ApiService {
             const queryString = params ? 
                 '?' + new URLSearchParams(params).toString() : '';
             
-            const response = await fetch(`/api/${endpoint}${queryString}`, {
+            const response = await fetch(`${API_BASE}/${endpoint}${queryString}`, {
                 headers: {
                     'Authorization': `Bearer ${user.userId}`
                 }
@@ -69,7 +76,7 @@ export class ApiService {
             const encryptedData = await encryptionService.encrypt(data);
             const user = get(userStore);
             
-            const response = await fetch(`/api/${endpoint}`, {
+            const response = await fetch(`${API_BASE}/${endpoint}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -100,7 +107,7 @@ export class ApiService {
             const encryptedData = await encryptionService.encrypt(data);
             const user = get(userStore);
             
-            const response = await fetch(`/api/${endpoint}`, {
+            const response = await fetch(`${API_BASE}/${endpoint}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',

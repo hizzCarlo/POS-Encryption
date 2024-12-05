@@ -16,8 +16,15 @@ class Get {
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             foreach ($items as &$item) {
-                if (isset($item['image']) && is_resource($item['image'])) {
-                    $item['image'] = stream_get_contents($item['image']);
+                if (isset($item['image'])) {
+                    // Convert BLOB to string if needed
+                    if (is_resource($item['image'])) {
+                        $item['image'] = stream_get_contents($item['image']);
+                    }
+                    // Ensure image path is properly formatted
+                    if (!empty($item['image'])) {
+                        $item['image'] = trim($item['image']);
+                    }
                 }
             }
             
