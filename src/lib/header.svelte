@@ -15,6 +15,7 @@
     { name: "Order", link: "/order", minRole: 0 },
     { name: "Inventory", link: "/inventory", minRole: 1 },
     { name: "Sales", link: "/sales", minRole: 1 },
+    { name: "Staff", link: "/staff", minRole: 1 },
   ].filter(tab => {
     return ($userStore.role ?? 0) >= tab.minRole;
   });

@@ -90,10 +90,10 @@
             imageFilename = uploadResult.filename;
         }
 
-        // Send the menu item data with the image filename
+        // Send the menu item data
         const itemData = {
             name: newItem.name,
-            price: parseFloat(newItem.price),
+            price: parseFloat(newItem.price.toString()),
             category: newItem.category,
             size: newItem.size || 'Standard',
             image: imageFilename
@@ -129,7 +129,7 @@
         console.error('Error:', error);
         showAlert = true;
         alertType = 'error';
-        alertMessage = "Error adding item: Network error";
+        alertMessage = "Error adding item: " + (error instanceof Error ? error.message : 'Network error');
         setTimeout(() => showAlert = false, 3000);
     }
   }

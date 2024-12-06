@@ -88,7 +88,7 @@
           name: item.name,
           price: Number(item.price),
           quantity: Number(item.quantity),
-          image: item.image,
+          image: item.image ? `https://formalytics.me/uploads/${item.image}` : '/images/placeholder.jpg',
           category: item.category
         }));
       } else {
@@ -195,7 +195,7 @@
             name: product.name,
             price: product.price,
             quantity: 1,
-            image: product.image,
+            image: product.image ? `https://formalytics.me/uploads/${product.image}` : '/images/placeholder.jpg',
             category: product.category
           },
         ];
@@ -301,13 +301,13 @@
         availabilityLoading.set(true);
         const productIds = products.map(p => p.product_id);
         
-        console.log("Checking availability for products:", productIds);
+        // console.log("Checking availability for products:", productIds);
         
         const result = await ApiService.get<any>('get-batch-product-ingredients', {
             product_ids: JSON.stringify(productIds)
         });
         
-        console.log("Raw API Response:", result);
+        // console.log("Raw API Response:", result);
         
         // Handle the response whether it's encrypted or not
         let availabilityData;
@@ -324,7 +324,7 @@
             }
         }
         
-        console.log("Processed availability data:", availabilityData);
+        // console.log("Processed availability data:", availabilityData);
         
         if (availabilityData) {
             const availability: Record<number, boolean> = {};
@@ -332,7 +332,7 @@
                 availability[Number(productId)] = data.isAvailable ?? true;
             });
             
-            console.log("Final availability map:", availability);
+            // console.log("Final availability map:", availability);
             productAvailability.set(availability);
         } else {
             // Default to available if no valid data

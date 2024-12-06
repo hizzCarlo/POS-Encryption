@@ -18,7 +18,7 @@ class Post {
 
         $username = $data['username'];
         $password = $data['password'];
-        $role = isset($data['role']) ? $data['role'] : 0;
+        $role = isset($data['role']) ? $data['role'] : 2;
 
         try {
             $checkUserSql = "SELECT * FROM user_acc WHERE username = :username";
@@ -45,6 +45,25 @@ class Post {
                     ];
                 }
             } else {
+                // Ensure password meets minimum requirements
+                if (strlen($password) < 8) {
+                    return [
+                        "status" => false,
+                        "message" => "Password must be at least 8 characters long"
+                    ];
+                }
+
+                // Additional password validation if needed
+                if (!preg_match("/[A-Z]/", $password) || 
+                    !preg_match("/[a-z]/", $password) || 
+                    !preg_match("/[0-9]/", $password) || 
+                    !preg_match("/[!@#$%^&*(),.?\":{}|<>]/", $password)) {
+                    return [
+                        "status" => false,
+                        "message" => "Password must contain uppercase, lowercase, numbers, and special characters"
+                    ];
+                }
+
                 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
                 $sql = "INSERT INTO user_acc (username, password, role) VALUES (:username, :password, :role)";
                 $stmt = $conn->prepare($sql);
@@ -87,6 +106,14 @@ class Post {
 
             if (!$user) {
                 return ["status" => false, "message" => "User not found"];
+            }
+
+            // Check if user has permission (role 0 or 1)
+            if ($user['role'] > 1) {
+                return [
+                    "status" => false, 
+                    "message" => "Your account is pending approval. Please contact an administrator."
+                ];
             }
 
             if (password_verify($password, $user['password'])) {

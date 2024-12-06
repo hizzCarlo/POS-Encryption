@@ -3,6 +3,7 @@ import { goto } from '$app/navigation';
 import { browser } from '$app/environment';
 import { encryptionService } from './services/encryption.js';
 import { ApiService } from './services/api.js';
+import { get } from 'svelte/store';
 
 // Define the user store type
 export interface User {
@@ -24,20 +25,25 @@ const initialState: User = {
 function createUserStore() {
     const { subscribe, set, update } = writable<User>(initialState);
 
-    // Initialize from localStorage if we're in the browser
-    if (browser) {
-        const stored = localStorage.getItem('auth');
-        if (stored) {
-            try {
-                const decrypted = encryptionService.decrypt(stored) as User;
-                if (decrypted.userId && decrypted.username && decrypted.isAuthenticated) {
-                    set(decrypted);
+    // Enhanced initialization from localStorage
+    async function initFromStorage() {
+        if (browser) {
+            const stored = localStorage.getItem('auth');
+            if (stored) {
+                try {
+                    const decrypted = await encryptionService.decrypt(stored) as User;
+                    if (decrypted.userId && decrypted.username && decrypted.isAuthenticated) {
+                        set(decrypted);
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('Error parsing auth data:', error);
+                    localStorage.removeItem('auth');
                 }
-            } catch (error) {
-                console.error('Error parsing auth data:', error);
-                localStorage.removeItem('auth');
             }
+            return false;
         }
+        return false;
     }
 
     return {
@@ -49,7 +55,8 @@ function createUserStore() {
             if (browser) {
                 localStorage.removeItem('auth');
             }
-        }
+        },
+        initFromStorage
     };
 }
 
@@ -68,6 +75,11 @@ export async function logout() {
 }
 
 export async function setUser(userData: { userId: number; username: string; role?: number }) {
+    // Only allow roles 0 and 1
+    if (userData.role !== 0 && userData.role !== 1) {
+        throw new Error('Unauthorized role');
+    }
+
     const user: User = {
         userId: userData.userId,
         username: userData.username,
@@ -103,4 +115,15 @@ export async function checkAuth(): Promise<boolean> {
 
     userStore.clear();
     return false;
+}
+
+// Add a new function to check current page authorization
+export async function checkPageAuth(requiredRole: number = 0): Promise<boolean> {
+    if (!browser) return false;
+
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) return false;
+
+    const user = get(userStore);
+    return (user.role ?? 0) >= requiredRole;
 }

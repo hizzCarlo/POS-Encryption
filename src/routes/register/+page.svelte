@@ -4,26 +4,65 @@
 
     let username = '';
     let password = '';
+    let confirmPassword = '';
+    let errorMessage = '';
+    let showPassword = false;
+    let showConfirmPassword = false;
 
     async function register() {
         try {
+            // Reset error message
+            errorMessage = '';
+
+            // Validate password length
+            if (password.length < 8) {
+                errorMessage = 'Password must be at least 8 characters long';
+                return;
+            }
+
+            // Check if passwords match
+            if (password !== confirmPassword) {
+                errorMessage = 'Passwords do not match';
+                return;
+            }
+
+            // Check password strength
+            const hasUpperCase = /[A-Z]/.test(password);
+            const hasLowerCase = /[a-z]/.test(password);
+            const hasNumbers = /\d/.test(password);
+            const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+            if (!(hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar)) {
+                errorMessage = 'Password must contain uppercase, lowercase, numbers, and special characters';
+                return;
+            }
+
             const result = await ApiService.post<{
                 status: boolean;
                 message?: string;
             }>('add-account', {
                 username,
-                password
+                password,
+                role: 2 // Set default role to 2
             });
 
             if (result.status) {
                 alert('Registration successful');
                 goto('/');
             } else {
-                alert(result.message || 'Registration failed');
+                errorMessage = result.message || 'Registration failed';
             }
         } catch (error) {
             console.error('Error during registration:', error);
-            alert('An error occurred. Please try again.');
+            errorMessage = 'An error occurred. Please try again.';
+        }
+    }
+
+    function togglePassword(field: 'password' | 'confirm') {
+        if (field === 'password') {
+            showPassword = !showPassword;
+        } else {
+            showConfirmPassword = !showConfirmPassword;
         }
     }
 </script>
@@ -53,20 +92,67 @@
                         required
                     >
                 </div>
-                <div class="form-group mb-4">
+                <div class="form-group mb-4 relative">
                     <input 
-                        type="password" 
-                        class="form-control form-control-sm w-full rounded-full px-4 py-2 border-2 border-[#faedcd] focus:border-[#d4a373] focus:outline-none transition-colors" 
+                        type={showPassword ? "text" : "password"}
+                        class="form-control form-control-sm w-full rounded-full px-4 py-2 border-2 border-[#faedcd] focus:border-[#d4a373] focus:outline-none transition-colors pr-10" 
                         id="password" 
                         bind:value={password} 
                         placeholder="Password"
                         required
                     >
+                    <button 
+                        type="button"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        on:click={() => togglePassword('password')}
+                    >
+                        {#if showPassword}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        {:else}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        {/if}
+                    </button>
                 </div>
+                <div class="form-group mb-4 relative">
+                    <input 
+                        type={showConfirmPassword ? "text" : "password"}
+                        class="form-control form-control-sm w-full rounded-full px-4 py-2 border-2 border-[#faedcd] focus:border-[#d4a373] focus:outline-none transition-colors pr-10" 
+                        id="confirmPassword" 
+                        bind:value={confirmPassword} 
+                        placeholder="Confirm Password"
+                        required
+                    >
+                    <button 
+                        type="button"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        on:click={() => togglePassword('confirm')}
+                    >
+                        {#if showConfirmPassword}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        {:else}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        {/if}
+                    </button>
+                </div>
+                {#if errorMessage}
+                    <div class="text-red-500 text-sm mb-4 text-center">{errorMessage}</div>
+                {/if}
                 <button 
                     type="submit" 
                     class="btn w-full rounded-full bg-[#d4a373] hover:bg-[#c49363] text-white py-3 font-medium transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={!username || !password}
+                    disabled={!username || !password || !confirmPassword}
                 >
                     Create Account
                 </button>
@@ -95,16 +181,5 @@
 
     .animate-float {
         animation: float 3s ease-in-out infinite;
-    }
-
-    .form-control {
-        transition: all 0.2s ease-in-out;
-        border: 1px solid #e2e8f0;
-        padding: 0.5rem 1rem;
-    }
-
-    .btn:disabled {
-        background-color: #9ca3af;
-        cursor: not-allowed;
     }
 </style>

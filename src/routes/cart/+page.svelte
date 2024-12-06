@@ -342,7 +342,15 @@
     <div class="cart-items">
       {#each cartItems as item}
         <div class="cart-item">
-          <img src={item.image ? `uploads/${item.image}` : 'placeholder.jpg'} alt={item.name} class="cart-item-image" />
+          <img 
+            src={item.image.startsWith('http') ? item.image : `https://formalytics.me/uploads/${item.image}`}
+            alt={item.name}
+            class="cart-item-image"
+            on:error={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                img.src = '/images/placeholder.jpg';
+            }}
+          />
           <div class="cart-item-details">
             <h3>{item.name}</h3>
             <p>₱{item.price}</p>

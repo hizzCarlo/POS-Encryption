@@ -12,8 +12,29 @@ if (!API_BASE) {
 export class ApiService {
     static async post<T>(endpoint: string, data: unknown): Promise<T> {
         try {
-            const encryptedData = await encryptionService.encrypt(data);
             const user = get(userStore);
+            
+            // Check if data is FormData
+            if (data instanceof FormData) {
+                const response = await fetch(`${API_BASE}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${user.userId}`
+                    },
+                    body: data  // Send FormData directly
+                });
+
+                if (response.status === 401) {
+                    userStore.clear();
+                    window.location.href = '/';
+                    throw new Error('Unauthorized');
+                }
+
+                return await response.json();
+            }
+
+            // Handle regular JSON data with encryption
+            const encryptedData = await encryptionService.encrypt(data);
             
             const response = await fetch(`${API_BASE}/${endpoint}`, {
                 method: 'POST',
@@ -25,7 +46,6 @@ export class ApiService {
             });
 
             if (response.status === 401) {
-                // Handle unauthorized access
                 userStore.clear();
                 window.location.href = '/';
                 throw new Error('Unauthorized');

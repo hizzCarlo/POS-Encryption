@@ -138,12 +138,12 @@
 
     async function showProductsUsingIngredient(item: InventoryItem) {
         try {
-            console.log('Fetching products for item:', item);
+            // console.log('Fetching products for item:', item);
             
             const response = await fetch(`${import.meta.env.VITE_API_URL}/get-products-using-ingredient?inventory_id=${item.inventory_id}`);
             const result = await response.json();
             
-            console.log('Raw API Response:', result);
+            // console.log('Raw API Response:', result);
 
             if (result.status && Array.isArray(result.data)) {
                 productsUsingIngredient = result.data;

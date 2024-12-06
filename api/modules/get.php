@@ -562,4 +562,20 @@ class Get {
             ];
         }
     }
+    public function getStaff() {
+        global $conn;
+        
+        try {
+            $sql = "SELECT User_id, username, role FROM user_acc ORDER BY User_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Error fetching staff: " . $e->getMessage()
+            ];
+        }
+    }
 }

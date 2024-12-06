@@ -10,15 +10,15 @@ export default defineConfig({
 			allow: ['..']
 		},
 		proxy: {
-			'/api': {
+			'/api-cafe': {
 				target: API_URL,
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/api/, '')
+				rewrite: (path) => path.replace(/^\/api-cafe/, '')
 			},
 			'/uploads': {
 				target: 'https://formalytics.me/uploads',
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/uploads/, '')
+					rewrite: (path) => path.replace(/^\/uploads/, '')
 			}
 		}
 	},

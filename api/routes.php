@@ -656,6 +656,20 @@ try {
                         exit;
                     }
                     break;
+                case 'get-staff':
+                    try {
+                        $staff = $get->getStaff();
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($staff)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error fetching staff: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
                 default:
                     echo json_encode(["error" => "Invalid request"]);
                     http_response_code(400);
@@ -729,6 +743,29 @@ try {
                         echo json_encode([
                             "status" => false,
                             "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
+                case 'update-staff-role':
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $update->updateStaffRole($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error updating role: " . $e->getMessage()
                         ]);
                     }
                     break;
