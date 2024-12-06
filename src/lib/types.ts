@@ -38,13 +38,6 @@ export type AlertType = 'success' | 'error' | 'warning';
 
 export interface BatchAvailabilityResponse {
     status: boolean;
-    data: Record<number, {
-        isAvailable: boolean;
-        ingredients: Array<{
-            product_id: number;
-            quantity_needed: number;
-            stock_quantity: number;
-            unit_of_measure: string;
-        }>;
-    }>;
+    message?: string;
+    data?: string;
 }

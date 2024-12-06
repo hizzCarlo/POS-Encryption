@@ -11,6 +11,7 @@
   import { productAvailability, availabilityLoading } from '$lib/stores/productAvailability';
   import { ApiService } from '$lib/services/api';
   import type { BatchAvailabilityResponse } from '$lib/types';
+  import { encryptionService } from '$lib/services/encryption';
 
   type Product = {
     product_id: number;
@@ -300,19 +301,55 @@
         availabilityLoading.set(true);
         const productIds = products.map(p => p.product_id);
         
-        const result = await ApiService.get<BatchAvailabilityResponse>('get-batch-product-ingredients', {
+        console.log("Checking availability for products:", productIds);
+        
+        const result = await ApiService.get<any>('get-batch-product-ingredients', {
             product_ids: JSON.stringify(productIds)
         });
         
-        if (result.status && result.data) {
+        console.log("Raw API Response:", result);
+        
+        // Handle the response whether it's encrypted or not
+        let availabilityData;
+        if (result && typeof result === 'object') {
+            if (result.status && typeof result.data === 'string') {
+                // Handle encrypted data
+                availabilityData = await encryptionService.decrypt(result.data);
+            } else if (result.status && typeof result.data === 'object') {
+                // Handle unencrypted data
+                availabilityData = result.data;
+            } else {
+                // Direct unencrypted response
+                availabilityData = result;
+            }
+        }
+        
+        console.log("Processed availability data:", availabilityData);
+        
+        if (availabilityData) {
             const availability: Record<number, boolean> = {};
-            Object.entries(result.data).forEach(([productId, data]) => {
-                availability[Number(productId)] = data.isAvailable;
+            Object.entries(availabilityData).forEach(([productId, data]: [string, any]) => {
+                availability[Number(productId)] = data.isAvailable ?? true;
+            });
+            
+            console.log("Final availability map:", availability);
+            productAvailability.set(availability);
+        } else {
+            // Default to available if no valid data
+            const availability: Record<number, boolean> = {};
+            products.forEach(p => {
+                availability[p.product_id] = true;
             });
             productAvailability.set(availability);
         }
     } catch (error) {
         console.error('Error checking batch availability:', error);
+        // Set all products as available on error
+        const availability: Record<number, boolean> = {};
+        products.forEach(p => {
+            availability[p.product_id] = true;
+        });
+        productAvailability.set(availability);
     } finally {
         availabilityLoading.set(false);
     }

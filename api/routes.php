@@ -534,23 +534,25 @@ try {
                         ]);
                         break;
                     }
+
                     try {
                         $result = $get->getProductsUsingIngredient($_GET['inventory_id']);
+                        error_log("Raw result: " . json_encode($result));
                         
                         if ($result['status']) {
-                            $encryptedData = $encryption->encrypt($result['data']);
                             echo json_encode([
                                 "status" => true,
-                                "data" => $encryptedData,
-                                "message" => $result['message'] ?? null
+                                "data" => $result['data'],
+                                "message" => $result['message']
                             ]);
                         } else {
                             echo json_encode([
                                 "status" => false,
-                                "message" => $result['message']
+                                "message" => $result['message'] ?? "Failed to fetch products"
                             ]);
                         }
                     } catch (Exception $e) {
+                        error_log("Error in get-products-using-ingredient: " . $e->getMessage());
                         echo json_encode([
                             "status" => false,
                             "message" => "Error processing request: " . $e->getMessage()
@@ -601,12 +603,41 @@ try {
                     }
                     break;
                 case 'get-batch-product-ingredients':
+                    if (!isset($_GET['product_ids'])) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Product IDs are required"
+                        ]);
+                        break;
+                    }
+                    
                     $product_ids = json_decode($_GET['product_ids']);
-                    $result = $get->getBatchProductIngredients($product_ids);
-                    echo json_encode([
-                        "status" => true,
-                        "data" => $encryption->encrypt($result['data'])
-                    ]);
+                    if (!$product_ids) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Invalid product IDs format"
+                        ]);
+                        break;
+                    }
+                    
+                    try {
+                        $result = $get->getBatchProductIngredients($product_ids);
+                        if ($result['status']) {
+                            $encryptedData = $encryption->encrypt($result['data']);
+                            echo json_encode([
+                                "status" => true,
+                                "data" => $encryptedData
+                            ]);
+                        } else {
+                            echo json_encode($result);
+                        }
+                    } catch (Exception $e) {
+                        error_log("Encryption error: " . $e->getMessage());
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request"
+                        ]);
+                    }
                     break;
                 case 'get-session-key':
                     session_start();
@@ -824,14 +855,27 @@ try {
                     echo json_encode($delete->clearCart($data['user_id']));
                     break;
                 case 'remove-from-cart':
-                    if (!isset($data['product_id']) || !isset($data['user_id'])) {
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->removeFromCart($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
                         echo json_encode([
                             "status" => false,
-                            "message" => "Product ID and User ID are required"
+                            "message" => "Error processing request: " . $e->getMessage()
                         ]);
-                        break;
                     }
-                    echo json_encode($delete->removeFromCart($data['product_id'], $data['user_id']));
                     break;
                 case 'delete-filtered-orders':
                     try {

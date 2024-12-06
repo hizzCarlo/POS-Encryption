@@ -270,13 +270,25 @@ class Delete {
         }
     }
 
-    public function removeFromCart($productId, $userId) {
+    public function removeFromCart($data) {
         global $conn;
+        
+        // Validate required fields
+        if (!isset($data['product_id']) || !isset($data['user_id'])) {
+            return [
+                "status" => false,
+                "message" => "Product ID and User ID are required"
+            ];
+        }
+
         try {
-            $sql = "DELETE FROM cart WHERE product_id = :product_id AND user_id = :user_id";
+            $sql = "DELETE FROM cart 
+                    WHERE product_id = :product_id 
+                    AND user_id = :user_id";
+                    
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':product_id', $productId);
-            $stmt->bindParam(':user_id', $userId);
+            $stmt->bindParam(':product_id', $data['product_id']);
+            $stmt->bindParam(':user_id', $data['user_id']);
             $stmt->execute();
             
             return [
@@ -284,9 +296,10 @@ class Delete {
                 "message" => "Item removed from cart successfully"
             ];
         } catch (PDOException $e) {
+            error_log("Error removing from cart: " . $e->getMessage());
             return [
                 "status" => false,
-                "message" => $e->getMessage()
+                "message" => "Database error: " . $e->getMessage()
             ];
         }
     }
