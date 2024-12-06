@@ -10,6 +10,7 @@
   import { checkAuth } from '$lib/auth';
   import { productAvailability, availabilityLoading } from '$lib/stores/productAvailability';
   import { ApiService } from '$lib/services/api';
+  import type { BatchAvailabilityResponse } from '$lib/types';
 
   type Product = {
     product_id: number;
@@ -210,20 +211,19 @@
 
   async function removeFromCart(productId: number) {
     try {
-        const response = await fetch('/api/remove-from-cart', {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                user_id: userId
-            })
+        const result = await ApiService.delete<{
+            status: boolean;
+            message: string;
+        }>('remove-from-cart', {
+            product_id: productId,
+            user_id: userId
         });
 
-        const result = await response.json();
         if (result.status) {
             cartItems = cartItems.filter(item => item.product_id !== productId);
+            if (browser) {
+                localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+            }
         } else {
             alert(result.message);
         }
@@ -299,12 +299,14 @@
     try {
         availabilityLoading.set(true);
         const productIds = products.map(p => p.product_id);
-        const response = await fetch(`/api/get-batch-product-ingredients&product_ids=${JSON.stringify(productIds)}`);
-        const result = await response.json();
+        
+        const result = await ApiService.get<BatchAvailabilityResponse>('get-batch-product-ingredients', {
+            product_ids: JSON.stringify(productIds)
+        });
         
         if (result.status && result.data) {
             const availability: Record<number, boolean> = {};
-            Object.entries(result.data).forEach(([productId, data]: [string, any]) => {
+            Object.entries(result.data).forEach(([productId, data]) => {
                 availability[Number(productId)] = data.isAvailable;
             });
             productAvailability.set(availability);

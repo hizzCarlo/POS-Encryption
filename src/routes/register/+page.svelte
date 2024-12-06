@@ -1,50 +1,25 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import { encryptionService } from '$lib/services/encryption';
+    import { ApiService } from '$lib/services/api';
 
     let username = '';
     let password = '';
 
     async function register() {
         try {
-            const encryptedData = await encryptionService.encrypt({
+            const result = await ApiService.post<{
+                status: boolean;
+                message?: string;
+            }>('add-account', {
                 username,
                 password
             });
 
-            console.log('Sending encrypted data:', encryptedData);
-
-            const response = await fetch('/api/add-account', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ data: encryptedData })
-            });
-
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const text = await response.text();
-                console.log('Response text:', text);
-
-                const result = JSON.parse(text);
-                
-                const decryptedResult = result.data ? 
-                    await encryptionService.decrypt(result.data) : 
-                    result;
-
-                console.log('Decrypted result:', decryptedResult);
-
-                if (decryptedResult.status) {
-                    alert('Registration successful');
-                    goto('/');
-                } else {
-                    alert(decryptedResult.message || 'Registration failed');
-                }
+            if (result.status) {
+                alert('Registration successful');
+                goto('/');
             } else {
-                const text = await response.text();
-                console.error('Unexpected response:', text);
-                throw new Error('Invalid JSON response');
+                alert(result.message || 'Registration failed');
             }
         } catch (error) {
             console.error('Error during registration:', error);

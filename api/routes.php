@@ -35,7 +35,7 @@ if (isset($_REQUEST['request'])) {
     $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     $request = explode('/', trim($path, '/'));
     // Remove 'api' from the beginning if present
-    if ($request[0] === 'api') {
+    if ($request[0] === 'api-cafe') {
         array_shift($request);
     }
 }
@@ -527,14 +527,33 @@ try {
                     echo json_encode($get->checkIngredientAvailability($_GET['product_id'], 1));
                     break;
                 case 'get-products-using-ingredient':
-                    $inventory_id = $_GET['inventory_id'] ?? null;
-                    if ($inventory_id) {
-                        $result = $get->getProductsUsingIngredient($inventory_id);
-                        echo json_encode($result);
-                    } else {
+                    if (!isset($_GET['inventory_id'])) {
                         echo json_encode([
                             "status" => false,
                             "message" => "Inventory ID is required"
+                        ]);
+                        break;
+                    }
+                    try {
+                        $result = $get->getProductsUsingIngredient($_GET['inventory_id']);
+                        
+                        if ($result['status']) {
+                            $encryptedData = $encryption->encrypt($result['data']);
+                            echo json_encode([
+                                "status" => true,
+                                "data" => $encryptedData,
+                                "message" => $result['message'] ?? null
+                            ]);
+                        } else {
+                            echo json_encode([
+                                "status" => false,
+                                "message" => $result['message']
+                            ]);
+                        }
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
                         ]);
                     }
                     break;
@@ -583,7 +602,11 @@ try {
                     break;
                 case 'get-batch-product-ingredients':
                     $product_ids = json_decode($_GET['product_ids']);
-                    echo json_encode($get->getBatchProductIngredients($product_ids));
+                    $result = $get->getBatchProductIngredients($product_ids);
+                    echo json_encode([
+                        "status" => true,
+                        "data" => $encryption->encrypt($result['data'])
+                    ]);
                     break;
                 case 'get-session-key':
                     session_start();
@@ -696,7 +719,27 @@ try {
             $data = json_decode(file_get_contents("php://input"), true);
             switch ($request[0]) {
                 case 'delete-item-stock':
-                    echo json_encode($delete->deleteItemStock($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->deleteItemStock($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                 case 'delete-menu-item':
                     try {

@@ -69,12 +69,13 @@
   // Function to check ingredient availability
   async function checkIngredientAvailability(productId: number, requestedQuantity: number): Promise<boolean> {
     try {
-      const response = await fetch(`/api/check-ingredient-availability&product_id=${productId}&quantity=${requestedQuantity}`, {
-        method: 'GET'
+      const result = await ApiService.get<{
+        status: boolean;
+        max_possible_quantity: number;
+      }>('check-ingredient-availability', {
+        product_id: productId.toString(),
+        quantity: requestedQuantity.toString()
       });
-
-      const result = await response.json();
-      console.log('Availability check result:', result);
 
       if (result.status) {
         productAvailability[productId] = result.max_possible_quantity;

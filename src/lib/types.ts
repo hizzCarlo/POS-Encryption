@@ -19,3 +19,32 @@ export interface ApiResponse<T> {
     message?: string;
     duplicate?: boolean;
 }
+
+export interface ProductIngredient {
+    product_name: string;
+    category: string;
+    quantity_needed: number;
+    unit_of_measure: string;
+    product_ingredient_id: number;
+}
+
+export interface ProductIngredientResponse {
+    status: boolean;
+    data: ProductIngredient[];
+    message?: string;
+}
+
+export type AlertType = 'success' | 'error' | 'warning';
+
+export interface BatchAvailabilityResponse {
+    status: boolean;
+    data: Record<number, {
+        isAvailable: boolean;
+        ingredients: Array<{
+            product_id: number;
+            quantity_needed: number;
+            stock_quantity: number;
+            unit_of_measure: string;
+        }>;
+    }>;
+}

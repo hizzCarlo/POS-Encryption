@@ -3,6 +3,7 @@
     import Header from '$lib/header.svelte';
     import SideNav from '$lib/sideNav.svelte';
     import { ApiService } from '$lib/services/api';
+    import type { ProductIngredient, ProductIngredientResponse } from '$lib/types';
 
     interface InventoryItem {
         inventory_id: number;
@@ -128,7 +129,7 @@
     }
 
     let showAlert = false;
-    let alertType: 'success' | 'error' = 'success';
+    let alertType: AlertType = 'success';
     let alertMessage = '';
 
     let productsUsingIngredient: any[] = [];
@@ -138,15 +139,13 @@
     async function deleteItemStock(inventoryId: number) {
         if (confirm('Are you sure you want to delete this item?')) {
             try {
-                const response = await fetch('/api/delete-item-stock', {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ inventory_id: inventoryId })
+                const result = await ApiService.delete<{
+                    status: boolean;
+                    message: string;
+                    products?: any[];
+                }>('delete-item-stock', { 
+                    inventory_id: inventoryId 
                 });
-
-                const result = await response.json();
                 
                 if (result.status) {
                     await fetchItems();
@@ -154,21 +153,20 @@
                     alertType = 'success';
                     alertMessage = result.message;
                 } else {
-                    if (result.products) {
-                        // Show dependency modal
+                    if (result.products && result.products.length > 0) {
                         productsUsingIngredient = result.products;
                         showDependencyModal = true;
                         currentIngredient = items.find(i => i.inventory_id === inventoryId);
                     } else {
                         showAlert = true;
                         alertType = 'error';
-                        alertMessage = result.message;
+                        alertMessage = result.message || 'Failed to delete item';
                     }
                 }
                 
                 setTimeout(() => showAlert = false, 3000);
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error deleting item:', error);
                 showAlert = true;
                 alertType = 'error';
                 alertMessage = 'Failed to delete item';
@@ -184,27 +182,43 @@
     let selectedItem: any = null;
     let usedInProducts: any[] = [];
 
-    async function showUsedInProducts(item: any) {
+    async function showUsedInProducts(item: InventoryItem) {
         try {
-            const response = await fetch(`/api/get-products-using-ingredient&inventory_id=${item.inventory_id}`);
-            const result = await response.json();
-            
+            const result = await ApiService.get<{
+                status: boolean;
+                data: Array<{
+                    product_name: string;
+                    category: string;
+                    quantity_needed: number;
+                    unit_of_measure: string;
+                    product_ingredient_id: number;
+                }>;
+                message?: string;
+            }>('get-products-using-ingredient', {
+                inventory_id: item.inventory_id.toString()
+            });
+
             if (result.status) {
                 productsUsingIngredient = result.data;
                 currentIngredient = item;
                 showDependencyModal = true;
+                
+                if (result.data.length === 0) {
+                    alertMessage = "No products are using this ingredient";
+                    alertType = 'warning' as const;
+                    showAlert = true;
+                }
             } else {
-                console.error('Error:', result.message);
-                alertMessage = "Failed to fetch products using this ingredient";
+                alertMessage = result.message || "Failed to fetch products";
                 alertType = 'error';
                 showAlert = true;
-                setTimeout(() => showAlert = false, 3000);
             }
         } catch (error) {
             console.error('Error fetching products:', error);
             alertMessage = "Failed to fetch products";
             alertType = 'error';
             showAlert = true;
+        } finally {
             setTimeout(() => showAlert = false, 3000);
         }
     }
@@ -396,34 +410,32 @@
             <h2 class="text-xl font-bold mb-4">
                 Products Using {currentIngredient.item_name}
             </h2>
-            <div class="product-list-container max-h-96 overflow-y-auto">
-                {#if productsUsingIngredient.length === 0}
-                    <p>No products are using this ingredient.</p>
-                {:else}
-                    <table class="w-full">
-                        <thead>
-                            <tr>
-                                <th>Product Name</th>
-                                <th>Category</th>
-                                <th>Quantity Needed</th>
-                                <th>Unit</th>
+            {#if productsUsingIngredient.length === 0}
+                <p class="text-gray-500">No products are using this ingredient.</p>
+            {:else}
+                <table class="w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left py-2">Product Name</th>
+                            <th class="text-left py-2">Category</th>
+                            <th class="text-left py-2">Quantity Needed</th>
+                            <th class="text-left py-2">Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each productsUsingIngredient as product}
+                            <tr class="border-t">
+                                <td class="py-2">{product.product_name}</td>
+                                <td class="py-2">{product.category}</td>
+                                <td class="py-2">{product.quantity_needed}</td>
+                                <td class="py-2">{product.unit_of_measure}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {#each productsUsingIngredient as product}
-                                <tr>
-                                    <td>{product.product_name}</td>
-                                    <td>{product.category}</td>
-                                    <td>{product.quantity_needed}</td>
-                                    <td>{currentIngredient.unit_of_measure}</td>
-                                </tr>
-                            {/each}
-                        </tbody>
-                    </table>
-                {/if}
-            </div>
+                        {/each}
+                    </tbody>
+                </table>
+            {/if}
             <button 
-                class="mt-4 bg-gray-500 text-white px-4 py-2 rounded"
+                class="w-full mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
                 on:click={() => showDependencyModal = false}
             >
                 Close

@@ -7,6 +7,14 @@ header('Content-Type: application/json');
 class Delete {
     public function deleteItemStock($data) {
         global $conn;
+        
+        if (!isset($data['inventory_id'])) {
+            return [
+                "status" => false,
+                "message" => "Inventory ID is required"
+            ];
+        }
+
         $inventory_id = $data['inventory_id'];
 
         try {
@@ -23,15 +31,10 @@ class Delete {
             $usedInProducts = $checkStmt->fetchAll(PDO::FETCH_ASSOC);
             
             if (count($usedInProducts) > 0) {
-                $productList = array_map(function($p) {
-                    return $p['product_name'];
-                }, $usedInProducts);
-                
                 $conn->rollBack();
                 return [
                     "status" => false, 
-                    "message" => "Cannot delete this ingredient as it is being used in the following products: " . 
-                                implode(", ", $productList) . ". Please remove it from these products first.",
+                    "message" => "Cannot delete this ingredient as it is being used in products",
                     "products" => $usedInProducts
                 ];
             }
@@ -43,7 +46,10 @@ class Delete {
             $stmt->execute();
             
             $conn->commit();
-            return ["status" => true, "message" => "Item stock deleted successfully"];
+            return [
+                "status" => true, 
+                "message" => "Item stock deleted successfully"
+            ];
 
         } catch (PDOException $e) {
             $conn->rollBack();

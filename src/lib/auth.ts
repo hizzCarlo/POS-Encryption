@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { browser } from '$app/environment';
 import { encryptionService } from './services/encryption.js';
+import { ApiService } from './services/api.js';
 
 // Define the user store type
 export interface User {
@@ -56,14 +57,7 @@ export const userStore = createUserStore();
 
 export async function logout() {
     try {
-        const response = await fetch('/api/logout', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
+        const data = await ApiService.post<{ status: boolean }>('logout', {});
         if (data.status) {
             userStore.clear();
             goto('/');

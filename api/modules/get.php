@@ -342,12 +342,17 @@ class Get {
         global $conn;
         
         try {
-            $sql = "SELECT p.name as product_name, p.category, 
-                    pi.quantity_needed, i.unit_of_measure
+            $sql = "SELECT DISTINCT
+                    p.name as product_name, 
+                    p.category, 
+                    pi.quantity_needed, 
+                    i.unit_of_measure,
+                    pi.product_ingredient_id
                     FROM product_ingredients pi 
-                    JOIN product p ON p.product_id = pi.product_id
-                    JOIN inventory i ON i.inventory_id = pi.inventory_id
-                    WHERE pi.inventory_id = :inventory_id";
+                    INNER JOIN product p ON p.product_id = pi.product_id
+                    INNER JOIN inventory i ON i.inventory_id = pi.inventory_id
+                    WHERE pi.inventory_id = :inventory_id
+                    ORDER BY p.name";
             
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':inventory_id', $inventory_id);
@@ -355,11 +360,21 @@ class Get {
             
             $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
+            if (empty($products)) {
+                return [
+                    "status" => true,
+                    "data" => [],
+                    "message" => "No products found using this ingredient"
+                ];
+            }
+            
             return [
                 "status" => true,
-                "data" => $products
+                "data" => $products,
+                "message" => count($products) . " products found using this ingredient"
             ];
         } catch (PDOException $e) {
+            error_log("Error in getProductsUsingIngredient: " . $e->getMessage());
             return [
                 "status" => false,
                 "message" => "Error fetching products: " . $e->getMessage()
