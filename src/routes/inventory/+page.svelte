@@ -3,6 +3,8 @@
     import Header from '$lib/header.svelte';
     import SideNav from '$lib/sideNav.svelte';
     import { ApiService } from '$lib/services/api';
+    import type { ProductIngredient, ProductIngredientResponse, AlertType } from '$lib/types';
+    import { encryptionService } from '$lib/services/encryption';
 
     interface InventoryItem {
         inventory_id: number;
@@ -128,25 +130,52 @@
     }
 
     let showAlert = false;
-    let alertType: 'success' | 'error' = 'success';
+    let alertType: AlertType = 'success';
     let alertMessage = '';
-
+    let showProductsModal = false;
+    let selectedItem: any = null;
     let productsUsingIngredient: any[] = [];
-    let showDependencyModal = false;
-    let currentIngredient: any = null;
+
+    async function showProductsUsingIngredient(item: InventoryItem) {
+        try {
+            // console.log('Fetching products for item:', item);
+            
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/get-products-using-ingredient?inventory_id=${item.inventory_id}`);
+            const result = await response.json();
+            
+            // console.log('Raw API Response:', result);
+
+            if (result.status && Array.isArray(result.data)) {
+                productsUsingIngredient = result.data;
+                selectedItem = item;
+                showProductsModal = true;
+            } else {
+                console.error('API error:', result.message);
+                alertMessage = result.message || "Failed to fetch products";
+                alertType = 'error';
+                showAlert = true;
+            }
+        } catch (error) {
+            console.error('Network error:', error);
+            alertMessage = "Failed to fetch products";
+            alertType = 'error';
+            showAlert = true;
+        }
+    }
+
+    import { onMount } from 'svelte';
+    onMount(fetchItems);
 
     async function deleteItemStock(inventoryId: number) {
         if (confirm('Are you sure you want to delete this item?')) {
             try {
-                const response = await fetch('/api/delete-item-stock', {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ inventory_id: inventoryId })
+                const result = await ApiService.delete<{
+                    status: boolean;
+                    message: string;
+                    products?: any[];
+                }>('delete-item-stock', { 
+                    inventory_id: inventoryId 
                 });
-
-                const result = await response.json();
                 
                 if (result.status) {
                     await fetchItems();
@@ -154,58 +183,23 @@
                     alertType = 'success';
                     alertMessage = result.message;
                 } else {
-                    if (result.products) {
-                        // Show dependency modal
+                    if (result.products && result.products.length > 0) {
                         productsUsingIngredient = result.products;
-                        showDependencyModal = true;
-                        currentIngredient = items.find(i => i.inventory_id === inventoryId);
+                        selectedItem = items.find(i => i.inventory_id === inventoryId);
+                        showProductsModal = true;
                     } else {
                         showAlert = true;
                         alertType = 'error';
-                        alertMessage = result.message;
+                        alertMessage = result.message || 'Failed to delete item';
                     }
                 }
-                
-                setTimeout(() => showAlert = false, 3000);
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error deleting item:', error);
                 showAlert = true;
                 alertType = 'error';
                 alertMessage = 'Failed to delete item';
                 setTimeout(() => showAlert = false, 3000);
             }
-        }
-    }
-
-    import { onMount } from 'svelte';
-    onMount(fetchItems);
-
-    let showProductsModal = false;
-    let selectedItem: any = null;
-    let usedInProducts: any[] = [];
-
-    async function showUsedInProducts(item: any) {
-        try {
-            const response = await fetch(`/api/get-products-using-ingredient&inventory_id=${item.inventory_id}`);
-            const result = await response.json();
-            
-            if (result.status) {
-                productsUsingIngredient = result.data;
-                currentIngredient = item;
-                showDependencyModal = true;
-            } else {
-                console.error('Error:', result.message);
-                alertMessage = "Failed to fetch products using this ingredient";
-                alertType = 'error';
-                showAlert = true;
-                setTimeout(() => showAlert = false, 3000);
-            }
-        } catch (error) {
-            console.error('Error fetching products:', error);
-            alertMessage = "Failed to fetch products";
-            alertType = 'error';
-            showAlert = true;
-            setTimeout(() => showAlert = false, 3000);
         }
     }
 </script>
@@ -298,8 +292,8 @@
                                     <button on:click={() => startEdit(item)}>Edit</button>
                                     <button on:click={() => deleteItemStock(item.inventory_id)}>Delete</button>
                                     <button 
-                                        on:click={() => showUsedInProducts(item)}
-                                        class="bg-blue-500 text-white px-2 py-1 rounded"
+                                        on:click={() => showProductsUsingIngredient(item)}
+                                        class="bg-[#d4a373] text-white px-3 py-1 rounded hover:bg-[#c49363] text-sm"
                                     >
                                         Used In Products
                                     </button>
@@ -361,70 +355,42 @@
 {/if}
 
 {#if showProductsModal && selectedItem}
-    <div class="modal-backdrop">
-        <div class="modal-content">
-            <h2>Products Using {selectedItem.item_name}</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product Name</th>
-                        <th>Quantity Needed</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each usedInProducts as product}
-                        <tr>
-                            <td>{product.name}</td>
-                            <td>{product.quantity_needed} {selectedItem.unit_of_measure}</td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
-            <button 
-                class="w-full mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
-                on:click={() => showProductsModal = false}
-            >
-                Close
-            </button>
-        </div>
-    </div>
-{/if}
-
-{#if showDependencyModal && currentIngredient}
-    <div class="modal-backdrop">
+    <div class="modal-overlay" on:click|self={() => showProductsModal = false}>
         <div class="modal-content">
             <h2 class="text-xl font-bold mb-4">
-                Products Using {currentIngredient.item_name}
+                Products Using {selectedItem.item_name}
             </h2>
-            <div class="product-list-container max-h-96 overflow-y-auto">
-                {#if productsUsingIngredient.length === 0}
-                    <p>No products are using this ingredient.</p>
-                {:else}
+            
+            {#if productsUsingIngredient.length === 0}
+                <p class="text-gray-500">No products are using this ingredient.</p>
+            {:else}
+                <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead>
                             <tr>
-                                <th>Product Name</th>
-                                <th>Category</th>
-                                <th>Quantity Needed</th>
-                                <th>Unit</th>
+                                <th class="text-left py-2">Product Name</th>
+                                <th class="text-left py-2">Category</th>
+                                <th class="text-right py-2">Quantity Needed</th>
+                                <th class="text-left py-2">Unit</th>
                             </tr>
                         </thead>
                         <tbody>
                             {#each productsUsingIngredient as product}
-                                <tr>
-                                    <td>{product.product_name}</td>
-                                    <td>{product.category}</td>
-                                    <td>{product.quantity_needed}</td>
-                                    <td>{currentIngredient.unit_of_measure}</td>
+                                <tr class="border-t">
+                                    <td class="py-2">{product.product_name}</td>
+                                    <td class="py-2">{product.category}</td>
+                                    <td class="py-2 text-right">{product.quantity_needed}</td>
+                                    <td class="py-2">{product.unit_of_measure}</td>
                                 </tr>
                             {/each}
                         </tbody>
                     </table>
-                {/if}
-            </div>
+                </div>
+            {/if}
+            
             <button 
-                class="mt-4 bg-gray-500 text-white px-4 py-2 rounded"
-                on:click={() => showDependencyModal = false}
+                class="mt-4 w-full bg-[#d4a373] text-white py-2 px-4 rounded hover:bg-[#c49363]"
+                on:click={() => showProductsModal = false}
             >
                 Close
             </button>
@@ -1041,5 +1007,28 @@
     .stock-table::-webkit-scrollbar-thumb:hover,
     .modal-content::-webkit-scrollbar-thumb:hover {
         background: #c49262;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
     }
 </style>

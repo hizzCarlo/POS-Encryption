@@ -10,6 +10,8 @@
   import { checkAuth } from '$lib/auth';
   import { productAvailability, availabilityLoading } from '$lib/stores/productAvailability';
   import { ApiService } from '$lib/services/api';
+  import type { BatchAvailabilityResponse } from '$lib/types';
+  import { encryptionService } from '$lib/services/encryption';
 
   type Product = {
     product_id: number;
@@ -86,7 +88,7 @@
           name: item.name,
           price: Number(item.price),
           quantity: Number(item.quantity),
-          image: item.image,
+          image: item.image ? `https://formalytics.me/uploads/${item.image}` : '/images/placeholder.jpg',
           category: item.category
         }));
       } else {
@@ -137,12 +139,6 @@
         }
       );
       
-      console.log('Update Cart Quantity Check:', {
-        productId,
-        newQuantity,
-        result
-      });
-      
       if (!result.is_available || newQuantity > result.max_quantity) {
         alert(`Cannot update quantity: Maximum available is ${result.max_quantity}`);
         return false;
@@ -182,12 +178,6 @@
         }
       );
       
-      console.log('Add to Cart Check:', {
-        product,
-        newQuantity,
-        result
-      });
-      
       if (!result.is_available || newQuantity > result.max_quantity) {
         alert(`Cannot add more of this item: Maximum available is ${result.max_quantity}`);
         return;
@@ -205,7 +195,7 @@
             name: product.name,
             price: product.price,
             quantity: 1,
-            image: product.image,
+            image: product.image ? `https://formalytics.me/uploads/${product.image}` : '/images/placeholder.jpg',
             category: product.category
           },
         ];
@@ -222,20 +212,19 @@
 
   async function removeFromCart(productId: number) {
     try {
-        const response = await fetch('/api/remove-from-cart', {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                user_id: userId
-            })
+        const result = await ApiService.delete<{
+            status: boolean;
+            message: string;
+        }>('remove-from-cart', {
+            product_id: productId,
+            user_id: userId
         });
 
-        const result = await response.json();
         if (result.status) {
             cartItems = cartItems.filter(item => item.product_id !== productId);
+            if (browser) {
+                localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+            }
         } else {
             alert(result.message);
         }
@@ -283,7 +272,7 @@
   $: total = getTotal();
 
   async function handleProductClick(group: GroupedProduct) {
-    if (['Drinks', 'Pizza'].includes(group.category) && group.variants.length > 1) {
+    if (['Drinks', 'Pizza', 'Burger & Fries', 'Chocolate Series', 'Nachos', 'Cheesecake Series'].includes(group.category) && group.variants.length > 1) {
       selectedProduct = group;
       showSizeModal = true;
     } else {
@@ -311,18 +300,56 @@
     try {
         availabilityLoading.set(true);
         const productIds = products.map(p => p.product_id);
-        const response = await fetch(`/api/get-batch-product-ingredients&product_ids=${JSON.stringify(productIds)}`);
-        const result = await response.json();
         
-        if (result.status && result.data) {
+        // console.log("Checking availability for products:", productIds);
+        
+        const result = await ApiService.get<any>('get-batch-product-ingredients', {
+            product_ids: JSON.stringify(productIds)
+        });
+        
+        // console.log("Raw API Response:", result);
+        
+        // Handle the response whether it's encrypted or not
+        let availabilityData;
+        if (result && typeof result === 'object') {
+            if (result.status && typeof result.data === 'string') {
+                // Handle encrypted data
+                availabilityData = await encryptionService.decrypt(result.data);
+            } else if (result.status && typeof result.data === 'object') {
+                // Handle unencrypted data
+                availabilityData = result.data;
+            } else {
+                // Direct unencrypted response
+                availabilityData = result;
+            }
+        }
+        
+        // console.log("Processed availability data:", availabilityData);
+        
+        if (availabilityData) {
             const availability: Record<number, boolean> = {};
-            Object.entries(result.data).forEach(([productId, data]: [string, any]) => {
-                availability[Number(productId)] = data.isAvailable;
+            Object.entries(availabilityData).forEach(([productId, data]: [string, any]) => {
+                availability[Number(productId)] = data.isAvailable ?? true;
+            });
+            
+            // console.log("Final availability map:", availability);
+            productAvailability.set(availability);
+        } else {
+            // Default to available if no valid data
+            const availability: Record<number, boolean> = {};
+            products.forEach(p => {
+                availability[p.product_id] = true;
             });
             productAvailability.set(availability);
         }
     } catch (error) {
         console.error('Error checking batch availability:', error);
+        // Set all products as available on error
+        const availability: Record<number, boolean> = {};
+        products.forEach(p => {
+            availability[p.product_id] = true;
+        });
+        productAvailability.set(availability);
     } finally {
         availabilityLoading.set(false);
     }

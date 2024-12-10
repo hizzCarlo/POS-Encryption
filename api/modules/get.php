@@ -16,8 +16,15 @@ class Get {
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             foreach ($items as &$item) {
-                if (isset($item['image']) && is_resource($item['image'])) {
-                    $item['image'] = stream_get_contents($item['image']);
+                if (isset($item['image'])) {
+                    // Convert BLOB to string if needed
+                    if (is_resource($item['image'])) {
+                        $item['image'] = stream_get_contents($item['image']);
+                    }
+                    // Ensure image path is properly formatted
+                    if (!empty($item['image'])) {
+                        $item['image'] = trim($item['image']);
+                    }
                 }
             }
             
@@ -335,11 +342,11 @@ class Get {
         global $conn;
         
         try {
-            $sql = "SELECT p.name as product_name, p.category, 
-                    pi.quantity_needed, i.unit_of_measure
+            error_log("Fetching products for inventory_id: " . $inventory_id);
+            
+            $sql = "SELECT p.name as product_name, p.category, pi.quantity_needed, pi.unit_of_measure, pi.product_ingredient_id
                     FROM product_ingredients pi 
-                    JOIN product p ON p.product_id = pi.product_id
-                    JOIN inventory i ON i.inventory_id = pi.inventory_id
+                    JOIN product p ON pi.product_id = p.product_id 
                     WHERE pi.inventory_id = :inventory_id";
             
             $stmt = $conn->prepare($sql);
@@ -347,12 +354,16 @@ class Get {
             $stmt->execute();
             
             $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("Found products: " . json_encode($products));
             
             return [
                 "status" => true,
-                "data" => $products
+                "data" => $products,
+                "message" => count($products) . " products found using this ingredient"
             ];
+            
         } catch (PDOException $e) {
+            error_log("Database error in getProductsUsingIngredient: " . $e->getMessage());
             return [
                 "status" => false,
                 "message" => "Error fetching products: " . $e->getMessage()
@@ -457,32 +468,86 @@ class Get {
         global $conn;
         
         try {
+            // First, check which products have recipes
             $placeholders = str_repeat('?,', count($product_ids) - 1) . '?';
-            $sql = "SELECT pi.product_id, pi.quantity_needed, i.stock_quantity, i.unit_of_measure
+            $recipeSql = "SELECT DISTINCT product_id 
+                          FROM product_ingredients 
+                          WHERE product_id IN ($placeholders)";
+            
+            $stmt = $conn->prepare($recipeSql);
+            $stmt->execute($product_ids);
+            $productsWithRecipes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            // Initialize all products as unavailable by default
+            $productAvailability = array_fill_keys($product_ids, [
+                'isAvailable' => false,
+                'ingredients' => [],
+                'hasRecipe' => false
+            ]);
+            
+            // Mark products with recipes and check their ingredients
+            if (!empty($productsWithRecipes)) {
+                // Create new placeholders specifically for products with recipes
+                $recipePlaceholders = str_repeat('?,', count($productsWithRecipes) - 1) . '?';
+                
+                $sql = "SELECT pi.product_id, pi.quantity_needed, i.stock_quantity, i.unit_of_measure, 
+                               i.inventory_id, i.item_name
                     FROM product_ingredients pi 
                     JOIN inventory i ON i.inventory_id = pi.inventory_id 
-                    WHERE pi.product_id IN ($placeholders)";
-            
-            $stmt = $conn->prepare($sql);
-            $stmt->execute($product_ids);
-            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Group ingredients by product_id
-            $productAvailability = [];
-            foreach ($ingredients as $ingredient) {
-                $productId = $ingredient['product_id'];
-                if (!isset($productAvailability[$productId])) {
-                    $productAvailability[$productId] = [
-                        'isAvailable' => true,
-                        'ingredients' => []
-                    ];
+                    WHERE pi.product_id IN ($recipePlaceholders)";
+                
+                $stmt = $conn->prepare($sql);
+                
+                // Debug log
+                error_log("Checking ingredients for products: " . implode(', ', $productsWithRecipes));
+                
+                // Execute with products that have recipes
+                $stmt->execute(array_values($productsWithRecipes));
+                $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Debug log
+                error_log("Found ingredients: " . json_encode($ingredients));
+                
+                // Group ingredients by product
+                $productIngredients = [];
+                foreach ($ingredients as $ingredient) {
+                    $productId = $ingredient['product_id'];
+                    if (!isset($productIngredients[$productId])) {
+                        $productIngredients[$productId] = [];
+                    }
+                    $productIngredients[$productId][] = $ingredient;
                 }
                 
-                $productAvailability[$productId]['ingredients'][] = $ingredient;
-                if ($ingredient['stock_quantity'] < $ingredient['quantity_needed']) {
-                    $productAvailability[$productId]['isAvailable'] = false;
+                // Check availability for each product with recipe
+                foreach ($productsWithRecipes as $productId) {
+                    $productAvailability[$productId]['hasRecipe'] = true;
+                    
+                    if (isset($productIngredients[$productId])) {
+                        $productAvailability[$productId]['ingredients'] = $productIngredients[$productId];
+                        $productAvailability[$productId]['isAvailable'] = true; // Start as available
+                        
+                        foreach ($productIngredients[$productId] as $ingredient) {
+                            if ($ingredient['stock_quantity'] <= 0 || 
+                                $ingredient['stock_quantity'] < $ingredient['quantity_needed']) {
+                                $productAvailability[$productId]['isAvailable'] = false;
+                                error_log(sprintf(
+                                    "Product %d marked unavailable: Ingredient %s (ID: %d) has stock %f, needs %f",
+                                    $productId,
+                                    $ingredient['item_name'],
+                                    $ingredient['inventory_id'],
+                                    $ingredient['stock_quantity'],
+                                    $ingredient['quantity_needed']
+                                ));
+                                break;
+                            }
+                        }
+                    }
                 }
             }
+            
+            // Debug logs
+            error_log("Products with recipes: " . implode(', ', $productsWithRecipes));
+            error_log("Final Availability Map: " . json_encode($productAvailability));
             
             return [
                 "status" => true,
@@ -490,9 +555,26 @@ class Get {
             ];
             
         } catch (PDOException $e) {
+            error_log("Error in getBatchProductIngredients: " . $e->getMessage());
             return [
                 "status" => false,
                 "message" => "Error fetching ingredients: " . $e->getMessage()
+            ];
+        }
+    }
+    public function getStaff() {
+        global $conn;
+        
+        try {
+            $sql = "SELECT User_id, username, role FROM user_acc ORDER BY User_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Error fetching staff: " . $e->getMessage()
             ];
         }
     }

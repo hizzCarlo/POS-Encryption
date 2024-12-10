@@ -71,36 +71,32 @@
     }
 
     try {
-        const formData = new FormData();
-        formData.append('name', newItem.name);
-        formData.append('price', newItem.price.toString());
-        formData.append('category', newItem.category);
-        formData.append('size', newItem.size || 'Standard');
-
-        // Handle image upload
-        if (newItem.image instanceof File && newItem.image.size > 0) {
-            formData.append('image', newItem.image);
-        }
-
-        // First upload the image and get its filename
-        const uploadResponse = await fetch('/api/upload-image', {
-            method: 'POST',
-            body: formData
-        });
-
-        const uploadResult = await uploadResponse.json();
+        let imageFilename = '';
         
-        if (!uploadResult.status) {
-            throw new Error(uploadResult.message || 'Failed to upload image');
+        // Handle image upload if there is one
+        if (newItem.image instanceof File && newItem.image.size > 0) {
+            const formData = new FormData();
+            formData.append('image', newItem.image);
+            
+            const uploadResult = await ApiService.post<{
+                status: boolean;
+                filename: string;
+                message?: string;
+            }>('upload-image', formData);
+
+            if (!uploadResult.status) {
+                throw new Error(uploadResult.message || 'Failed to upload image');
+            }
+            imageFilename = uploadResult.filename;
         }
 
-        // Now send the menu item data with the image filename
+        // Send the menu item data
         const itemData = {
             name: newItem.name,
-            price: parseFloat(newItem.price),
+            price: parseFloat(newItem.price.toString()),
             category: newItem.category,
             size: newItem.size || 'Standard',
-            image: uploadResult.filename
+            image: imageFilename
         };
 
         const result = await ApiService.post<ApiResponse<{product_id: number}>>('add-menu-item', itemData);
@@ -133,7 +129,7 @@
         console.error('Error:', error);
         showAlert = true;
         alertType = 'error';
-        alertMessage = "Error adding item: Network error";
+        alertMessage = "Error adding item: " + (error instanceof Error ? error.message : 'Network error');
         setTimeout(() => showAlert = false, 3000);
     }
   }
@@ -142,7 +138,6 @@
     if (!editItem) return;
 
     try {
-        // Prepare the data object
         const updateData = {
             product_id: editItem.product_id,
             name: editItem.name,
@@ -151,24 +146,25 @@
             size: editItem.size || 'Standard'
         };
 
-        // If there's a new image, add it to formData
+        // If there's a new image, upload it first
         if (editItem.image instanceof File) {
             const formData = new FormData();
             formData.append('image', editItem.image);
             
-            // First upload the image
-            const imageUploadResult = await fetch('/api/upload-image', {
-                method: 'POST',
-                body: formData
-            });
+            const imageResult = await ApiService.post<{
+                status: boolean;
+                filename: string;
+                message?: string;
+            }>('upload-image', formData);
             
-            const imageResult = await imageUploadResult.json();
             if (imageResult.status) {
                 updateData.image = imageResult.filename;
+            } else {
+                throw new Error(imageResult.message || 'Failed to upload image');
             }
         }
 
-        // Send the encrypted update request
+        // Send the update request
         const result = await ApiService.put<ApiResponse<void>>('update-menu-item', updateData);
         
         showAlert = true;
@@ -379,7 +375,7 @@
                 <img 
                   src={editItem.image instanceof File 
                     ? URL.createObjectURL(editItem.image) 
-                    : `http://localhost/POS-Encryption/uploads/${editItem.image}`}
+                    : `https://formalytics.me/uploads/${editItem.image}`}
                   alt={editItem.name}
                   class="w-full h-48 object-cover rounded-md mb-2"
                   on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
@@ -435,7 +431,7 @@
           <img 
             src={item.image instanceof File ? 
                 URL.createObjectURL(item.image) : 
-                `http://localhost/POS-Encryption/uploads/${item.image}`}
+                `https://formalytics.me/uploads/${item.image}`}
             alt={item.name} 
             class="item-image" 
             on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}

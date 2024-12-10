@@ -320,4 +320,32 @@ class Update {
         }
     }
     
+    public function updateStaffRole($data) {
+        global $conn;
+        
+        if (!isset($data['user_id']) || !isset($data['role'])) {
+            return [
+                "status" => false,
+                "message" => "User ID and role are required"
+            ];
+        }
+
+        try {
+            $sql = "UPDATE user_acc SET role = :role WHERE User_id = :user_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':role', $data['role']);
+            $stmt->bindParam(':user_id', $data['user_id']);
+            $stmt->execute();
+            
+            return [
+                "status" => true,
+                "message" => "Role updated successfully"
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Error updating role: " . $e->getMessage()
+            ];
+        }
+    }
 }

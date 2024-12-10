@@ -15,6 +15,7 @@
     let username = '';
     let password = '';
     let errorMessage = '';
+    let showPassword = false;
 
     async function handleSubmit(event?: Event) {
         if (event) {
@@ -27,20 +28,24 @@
                 password
             });
 
-            if (result.status) {
+            if (result.status && (result.role === 0 || result.role === 1)) {
                 await setUser({
                     userId: result.userId,
                     username: result.username,
-                    role: result.role ?? 0
+                    role: result.role
                 });
                 goto('/order');
             } else {
-                errorMessage = result.message || 'Login failed';
+                errorMessage = result.message || 'Login failed. Your account may be pending approval.';
             }
         } catch (error) {
             console.error('Login error:', error);
             errorMessage = 'Failed to login. Please try again.';
         }
+    }
+
+    function togglePassword() {
+        showPassword = !showPassword;
     }
 </script>
 

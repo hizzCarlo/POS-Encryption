@@ -6,6 +6,7 @@ ini_set('display_errors', '0');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Credentials: true');
 header('Content-Type: application/json');
 header('Access-Control-Max-Age: 86400'); // 24 hours for preflight cache
 
@@ -34,13 +35,21 @@ if (isset($_REQUEST['request'])) {
     $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     $request = explode('/', trim($path, '/'));
     // Remove 'api' from the beginning if present
-    if ($request[0] === 'api') {
+    if ($request[0] === 'api-cafe') {
         array_shift($request);
     }
 }
 
 // At the top of the file after other headers
 define('DEBUG', true); // Set to false in production
+
+// At the top of the file
+define('UPLOAD_DIR', __DIR__ . '/../uploads/');
+
+// Ensure upload directory exists
+if (!file_exists(UPLOAD_DIR)) {
+    mkdir(UPLOAD_DIR, 0777, true);
+}
 
 // Update handleError function
 function handleError($error) {
@@ -518,14 +527,35 @@ try {
                     echo json_encode($get->checkIngredientAvailability($_GET['product_id'], 1));
                     break;
                 case 'get-products-using-ingredient':
-                    $inventory_id = $_GET['inventory_id'] ?? null;
-                    if ($inventory_id) {
-                        $result = $get->getProductsUsingIngredient($inventory_id);
-                        echo json_encode($result);
-                    } else {
+                    if (!isset($_GET['inventory_id'])) {
                         echo json_encode([
                             "status" => false,
                             "message" => "Inventory ID is required"
+                        ]);
+                        break;
+                    }
+
+                    try {
+                        $result = $get->getProductsUsingIngredient($_GET['inventory_id']);
+                        error_log("Raw result: " . json_encode($result));
+                        
+                        if ($result['status']) {
+                            echo json_encode([
+                                "status" => true,
+                                "data" => $result['data'],
+                                "message" => $result['message']
+                            ]);
+                        } else {
+                            echo json_encode([
+                                "status" => false,
+                                "message" => $result['message'] ?? "Failed to fetch products"
+                            ]);
+                        }
+                    } catch (Exception $e) {
+                        error_log("Error in get-products-using-ingredient: " . $e->getMessage());
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
                         ]);
                     }
                     break;
@@ -573,8 +603,41 @@ try {
                     }
                     break;
                 case 'get-batch-product-ingredients':
+                    if (!isset($_GET['product_ids'])) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Product IDs are required"
+                        ]);
+                        break;
+                    }
+                    
                     $product_ids = json_decode($_GET['product_ids']);
-                    echo json_encode($get->getBatchProductIngredients($product_ids));
+                    if (!$product_ids) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Invalid product IDs format"
+                        ]);
+                        break;
+                    }
+                    
+                    try {
+                        $result = $get->getBatchProductIngredients($product_ids);
+                        if ($result['status']) {
+                            $encryptedData = $encryption->encrypt($result['data']);
+                            echo json_encode([
+                                "status" => true,
+                                "data" => $encryptedData
+                            ]);
+                        } else {
+                            echo json_encode($result);
+                        }
+                    } catch (Exception $e) {
+                        error_log("Encryption error: " . $e->getMessage());
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request"
+                        ]);
+                    }
                     break;
                 case 'get-session-key':
                     session_start();
@@ -591,6 +654,20 @@ try {
                         $result = $get->checkIngredientAvailability($product_id, $quantity);
                         echo json_encode($result);
                         exit;
+                    }
+                    break;
+                case 'get-staff':
+                    try {
+                        $staff = $get->getStaff();
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($staff)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error fetching staff: " . $e->getMessage()
+                        ]);
                     }
                     break;
                 default:
@@ -669,6 +746,29 @@ try {
                         ]);
                     }
                     break;
+                case 'update-staff-role':
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $update->updateStaffRole($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error updating role: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
                 default:
                     $data = json_decode(file_get_contents("php://input"), true);
                     switch ($request[0]) {
@@ -687,7 +787,27 @@ try {
             $data = json_decode(file_get_contents("php://input"), true);
             switch ($request[0]) {
                 case 'delete-item-stock':
-                    echo json_encode($delete->deleteItemStock($data));
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->deleteItemStock($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error processing request: " . $e->getMessage()
+                        ]);
+                    }
                     break;
                 case 'delete-menu-item':
                     try {
@@ -772,14 +892,27 @@ try {
                     echo json_encode($delete->clearCart($data['user_id']));
                     break;
                 case 'remove-from-cart':
-                    if (!isset($data['product_id']) || !isset($data['user_id'])) {
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->removeFromCart($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
                         echo json_encode([
                             "status" => false,
-                            "message" => "Product ID and User ID are required"
+                            "message" => "Error processing request: " . $e->getMessage()
                         ]);
-                        break;
                     }
-                    echo json_encode($delete->removeFromCart($data['product_id'], $data['user_id']));
                     break;
                 case 'delete-filtered-orders':
                     try {

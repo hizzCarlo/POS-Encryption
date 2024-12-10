@@ -69,12 +69,13 @@
   // Function to check ingredient availability
   async function checkIngredientAvailability(productId: number, requestedQuantity: number): Promise<boolean> {
     try {
-      const response = await fetch(`/api/check-ingredient-availability&product_id=${productId}&quantity=${requestedQuantity}`, {
-        method: 'GET'
+      const result = await ApiService.get<{
+        status: boolean;
+        max_possible_quantity: number;
+      }>('check-ingredient-availability', {
+        product_id: productId.toString(),
+        quantity: requestedQuantity.toString()
       });
-
-      const result = await response.json();
-      console.log('Availability check result:', result);
 
       if (result.status) {
         productAvailability[productId] = result.max_possible_quantity;
@@ -181,8 +182,12 @@
   }
 
   function printReceipt() {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow || !receiptData) return;
+    if (!receiptData) return;
+
+    // Create a hidden iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
 
     const printContent = `
       <!DOCTYPE html>
@@ -273,14 +278,27 @@
       </html>
     `;
 
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(printContent);
+    doc.close();
+
     // Wait for content to load before printing
-    printWindow.onload = function() {
-      printWindow.print();
-      // Optional: Close the window after printing
-      // printWindow.close();
+    iframe.onload = function() {
+        try {
+            iframe.contentWindow?.print();
+            
+            // Remove the iframe after printing
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+                // Close the receipt modal
+                closeReceiptModal();
+            }, 500);
+        } catch (error) {
+            console.error('Error printing:', error);
+        }
     };
   }
 
@@ -300,12 +318,6 @@
           quantity: newQuantity.toString()
         }
       );
-      
-      console.log('Availability Check Result:', {
-        item: item,
-        newQuantity: newQuantity,
-        result: result
-      });
       
       if (!result.is_available || newQuantity > result.max_quantity) {
         showAlertMessage(`Cannot change quantity: Insufficient ingredients. Maximum available: ${result.max_quantity}`);
@@ -330,7 +342,15 @@
     <div class="cart-items">
       {#each cartItems as item}
         <div class="cart-item">
-          <img src={item.image ? `uploads/${item.image}` : 'placeholder.jpg'} alt={item.name} class="cart-item-image" />
+          <img 
+            src={item.image.startsWith('http') ? item.image : `https://formalytics.me/uploads/${item.image}`}
+            alt={item.name}
+            class="cart-item-image"
+            on:error={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                img.src = '/images/placeholder.jpg';
+            }}
+          />
           <div class="cart-item-details">
             <h3>{item.name}</h3>
             <p>₱{item.price}</p>

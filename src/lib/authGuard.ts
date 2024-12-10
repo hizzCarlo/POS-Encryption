@@ -5,7 +5,7 @@ import { browser } from '$app/environment';
 import { encryptionService } from './services/encryption.js';
 import type { User } from './auth.js';
 
-export async function requireAuth(requiredRole: number = 1): Promise<boolean> {
+export async function requireAuth(requiredRole: number = 0): Promise<boolean> {
     if (!browser) return false;
     
     const user = get(userStore);
@@ -25,6 +25,8 @@ export async function requireAuth(requiredRole: number = 1): Promise<boolean> {
             } catch (error) {
                 console.error('Error parsing auth data:', error);
                 localStorage.removeItem('auth');
+                goto('/');
+                return false;
             }
         }
         goto('/');
@@ -37,4 +39,8 @@ export async function requireAuth(requiredRole: number = 1): Promise<boolean> {
         return false;
     }
     return true;
+}
+
+export function canAccessAdmin(user: User): boolean {
+    return user.isAuthenticated && (user.role === 1);
 }
