@@ -654,7 +654,7 @@
 
   .mobile-cart-container {
     position: absolute;
-    top: 5%;
+    top: 18.5rem;
     left: 50%;
     transform: translate(-50%, -50%);
     width: 90%;
